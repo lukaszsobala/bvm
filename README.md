@@ -46,6 +46,7 @@ Right now it is quite basic, but functional. It might stay that way, might not. 
 
 ### Tips:
 - Use Wayland. This is not a hard requirement, but it makes a big difference.
+- Use an ARM 64-bit Linux host OS. This is a hard requirement.
 - Use Debian Bookworm or a new-ish Ubuntu image. Debian Bullseye may or may not work.
 - Your VM can be a folder anywhere, so it could be on an external SSD drive if you have one available.
 - If you encounter an issue, please [open an issue.](https://github.com/Botspot/bvm/issues)
