@@ -372,7 +372,7 @@ get_codename() { #get debian/ubuntu codename
 
 install_dependencies() { #try to install everything BVM needs
   required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen"
-  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios"
+  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu"
   
   #using freerdp version 2 instead of 3 because it does not freeze on login and has more reliable clipboard sync
   if [ "$XDG_SESSION_TYPE" == wayland ];then
@@ -407,6 +407,9 @@ install_dependencies() { #try to install everything BVM needs
   elif [ ! -f /usr/share/seabios/vgabios-ramfb.bin ];then
     #seabios is missing
     installneeded=1
+  elif [ ! -f /usr/lib/ipxe/qemu/pxe-virtio.rom ];then
+    #ipxe-qemu is missing
+    installneeded=1
   fi
   
   #hide the changelog
@@ -419,7 +422,7 @@ install_dependencies() { #try to install everything BVM needs
     if [ "$(get_codename)" == bookworm ];then
       echo "deb http://deb.debian.org/debian bookworm-backports main contrib non-free non-free-firmware" | sudo tee /etc/apt/sources.list.d/bookworm-backports.list >/dev/null
       sudo apt update
-      sudo apt install -y -t bookworm-backports --only-upgrade qemu-system-arm || error "Failed to upgrade qemu-system-arm to the version from the Debian bookworm-backports repository."
+      sudo apt install -y -t bookworm-backports --only-upgrade qemu-system-arm qemu-system-gui || error "Failed to upgrade qemu-system-arm to the version from the Debian bookworm-backports repository."
     fi
   elif [ "$installneeded" == 1 ];then
     #dependencies needed, but this is not a debian distro
@@ -455,7 +458,7 @@ update_check() { #check for updates and reload the script if necessary
     
     if [ $? == 0 ];then
       echo "git pull finished. Reloading script..."
-      "$DIRECTORY/bvm" "$@"
+      "$DIRECTORY/bvm" "${original_flags[@]}"
       exit $?
     else
       warning "update_check: git pull failed. Continuing..."
@@ -474,6 +477,8 @@ copy_icons() { #install icons to a location where the panel will notice them
 }
 
 DIRECTORY="$(readlink -f "$(dirname "$0")")"
+
+original_flags=("$@")
 
 mode="$1"
 vmdir="$2"
