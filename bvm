@@ -546,6 +546,10 @@ copy_icons
 if ! sudo modprobe kvm ;then
   error "KVM kernel module is needed but missing. Command that failed was 'sudo modprobe kvm'"
 fi
+#if ! groups | grep -q ' kvm ' ;then
+#  sudo usermod -aG kvm $USER
+#  error "Your user was not part of kvm group. Now they are. Please reboot."
+#fi
 #check RAM and choose how much to allocate the VM
 if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -le $((1*1024*1024)) ];then
   error "Your system needs at least 2 GB of RAM. Be aware that a VM might be able to boot on 1 GB of RAM, but it cannot install Windows with less than 2 GB."
@@ -571,7 +575,7 @@ To get a fresh VM up and running, use a sequence like this:
 \e[96m$0 firstboot $HOME/win11\e[0m
  If the Windows install is interrupted, just run this step again.
  Be aware: when Windows finishes installing, the VM will shutdown.
- All .iso files and the unattended folder could be removed here to save space.
+ All .iso files and the unattended folder could be removed once this step is done.
 \e[96m$0 boot $HOME/win11\e[0m
  Main command to use the VM.
  This works, but is a little laggy and lacks crucial features.
