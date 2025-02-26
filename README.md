@@ -29,7 +29,11 @@ To get a fresh VM up and running, use a sequence like this:
     Be aware: the VM needs to be shut down properly to mount in read/write mode.  
 Full list of modes: `new-vm`, `download`, `prepare`, `firstboot`, `boot`, `connect`, `mount`, `help`, `list-languages`, `boot-nodisplay`, `boot-ramfb`, `boot-gtk`, `connect-freerdp`, `connect-remmina`, `gui`  
 What is that last one there? Oh I nearly forgot, BVM has a simple single-page graphical user interface.  
-![image](https://github.com/user-attachments/assets/6b4bef4f-b18a-44f0-aba3-1d9ea2f0f34a)  
+![image](https://github.com/user-attachments/assets/6b4bef4f-b18a-44f0-aba3-1d9ea2f0f34a)
+Run the GUI with:
+```
+./bvm/bvm gui
+```
 Right now it is quite basic, but functional. It might stay that way, might not. Much of BVM's future depends on how much of an impact it makes in the community. If nobody uses it, then I will leave it to rot like with some other projects.  
 
 ### Tips:
@@ -48,10 +52,10 @@ Right now it is quite basic, but functional. It might stay that way, might not. 
 - One exciting possibility is the chance to break out individual windows programs and integrate them directly into your desktop, using a RDP mode called RemoteApp. See a screenshot of this [here.](https://forums.raspberrypi.com/viewtopic.php?t=384433) Unfortunately it is [very inconsistent](https://github.com/FreeRDP/FreeRDP/issues/11218) right now, and I deemed it too unstable to include as a feature at the moment.
 
 ### Ask me anything!
-- Is this unique?
+- Is this unique?  
     Yes and no. Other projects share some similar ideas. The [quickemu project](https://github.com/quickemu-project/quickemu) probably comes closest, but it is only for x86 PCs and not easily ARM-compatible. There is also the [UTM project](https://getutm.app/), which I am not very familiar with. The most unique thing here, in my opinion, is the extent to which it is automated. I could string the main modes back to back, leave it running, and in a couple hours there would be a fully-installed VM ready to use, assuming nothing goes wrong. Usually you would need to be watching over it to press a key in a 5-second window to boot into the installer, or click through the installation, but BVM bypasses the keypress by patching the Windows installer ISO in a very unconventional way (see the `patch_iso_noprompt` function), and bypasses manual installation with the help of an autounattend.xml file.  
-- What was the timeline for making this?
+- What was the timeline for making this?  
     I have wanted to do a W11 VM on a Pi ever since I was a high-schooler with a Pi3, so 5+ years. The task is not trivial, and no tutorials have existed until quite recently. Occasionally someone would get it working, but leave behind very incomplete instructions and not respond to questions. While I messed with the concept in the past on several occasions and had partial success, I never "cracked" the code completely until I made up my mind to figure it out this month. (January 2025) This has been a multi-week effort of near-total dedication to rooting out issues. ChatGPT has been a huge life-saver especially when it came to the obscure Windows stuff.
-- Why did you make this?
+- Why did you make this?  
     First it will benefit me quite a bit in the future. As a die-hard Raspberry Pi user without easy access to another computer, now I have an alternative to Wine when I need to run a Windows-only program.
     But also, I genuinly want to help you all out. The ARM desktop community is special, but small. The more people we can keep in this community, the better it will become for everyone. Some will oppose the promotion of a Microsoft product and say it defeats the point of FOSS. But for most folks, it's either Linux with compromise, or no Linux at all. Therefore I see tremendous value in all projects that bring a usable ARM desktop experience within reach for beginner users.
