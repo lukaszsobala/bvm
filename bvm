@@ -1,0 +1,1243 @@
+#!/bin/bash
+
+error() { #red text and exit 1
+  echo -e "\e[91m$1\e[0m" 1>&2
+  exit 1
+}
+
+warning() { #yellow text
+  echo -e "\e[93m\e[5m◢◣\e[25m WARNING: $1\e[0m" 1>&2
+}
+
+status() { #cyan text to indicate what is happening
+  
+  #detect if a flag was passed, and if so, pass it on to the echo command
+  if [[ "$1" == '-'* ]] && [ ! -z "$2" ];then
+    echo -e $1 "\e[96m$2\e[0m" 1>&2
+  else
+    echo -e "\e[96m$1\e[0m" 1>&2
+  fi
+}
+
+status_green() { #announce the success of a major action
+  echo -e "\e[92m$1\e[0m" 1>&2
+}
+
+debug() { #an echo command that only runs when debug mode is on
+  if [ "$bvm_debug" == true ];then
+    echo "$@"
+  fi
+}
+
+generate_logo() { #display cool BVM logo in terminal
+  #complex logo requires Unicode 13 support (libicu66+)
+  #this is available in Ubuntu 20.04+ and Debian 11+
+  #use simpler logo when not supported to fix issue https://github.com/Botspot/pi-apps/issues/1441
+  if [ -f /usr/lib/aarch64-linux-gnu/libicudata.so ]; then
+    local version="$(readlink -f /usr/lib/aarch64-linux-gnu/libicudata.so | sed -n 's/.*libicudata.so.//p')"
+  elif [ -f /usr/lib/arm-linux-gnueabihf/libicudata.so ]; then
+    local version="$(readlink -f /usr/lib/arm-linux-gnueabihf/libicudata.so | sed -n 's/.*libicudata.so.//p')"
+  elif find /usr/lib/aarch64-linux-gnu/libicudata.so.* &>/dev/null; then
+    local version="$(find /usr/lib/aarch64-linux-gnu/libicudata.so.* | head -1 | sed -n 's+^/usr/lib/aarch64-linux-gnu/libicudata.so.++p')"
+  elif find /usr/lib/arm-linux-gnueabihf/libicudata.so.* &>/dev/null; then
+    local version="$(find /usr/lib/arm-linux-gnueabihf/libicudata.so.* | head -1 | sed -n 's+^/usr/lib/arm-linux-gnueabihf/libicudata.so.++p')"
+  else
+    local version="65"
+  fi
+  
+  if (( $(echo "$version >= 66" | bc -l) )); then
+  local rpigreen='\e[38;2;106;191;75m'
+  local rpired='\e[38;2;195;28;74m'
+  local black='\e[30m'
+  local white='\e[97m'
+  echo -e "\e[96m █████🭏 🭖█🭀  🭋█🭡 ██◣   ◢██ ${black}  ${rpigreen}   ${black}   ${rpigreen}   ${black}           \e[38;2;241;81;27m      \e[38;2;128;204;40m      ${black}                   
+\e[96m █▊  🭨█ 🭦█🭐  🭅█🭛 ███◣ ◢███ ${black}   ${rpigreen}   ${black} ${rpigreen}   ${black}            \e[38;2;241;81;27m      \e[38;2;128;204;40m      ${black}           \e[38;2;255;0;0m   ${black} \e[38;2;255;0;0m   ${black} 
+\e[96m █████🭪  🭖█🭀🭋█🭡  █▉◥█🭩█◤🮋█ ${black}  ${rpired}  ${black} ${rpired}   ${black} ${rpired}  ${black}     ${white}  ${black}    \e[38;2;241;81;27m      \e[38;2;128;204;40m      ${black}  ${white}      ${black}  \e[38;2;255;0;0m         ${black}
+\e[96m █▊  🭨█  🭦█🭐🭅█🭛  █▉ ◥█◤ 🮋█ ${black} ${rpired} ${black} ${rpired}   ${black} ${rpired}   ${black} ${rpired} ${black}  ${white}      ${black}  \e[38;2;0;173;239m      \e[38;2;251;188;9m      ${black}           \e[38;2;255;0;0m       ${black} 
+\e[96m █████🭠   🭖██🭡   █▉     🮋█ ${black}  ${rpired}  ${black} ${rpired}   ${black} ${rpired}  ${black}     ${white}  ${black}    \e[38;2;0;173;239m      \e[38;2;251;188;9m      ${black}  ${white}      ${black}    \e[38;2;255;0;0m     ${black}  
+${white}BOTSPOT  VIRTUAL  MACHINE  ${black}    ${rpired}     ${black}             \e[38;2;0;173;239m      \e[38;2;251;188;9m      ${black}             \e[38;2;255;0;0m   ${black}   \e[39m"
+  else
+    echo "BVM - botspot virtual machine (you get the boring logo - unicode 13 not found)"
+  fi
+  local funny_messages='"Making it easy to run a Windows 11 VM on that potato you found in the woods."
+"Rest easy knowing you are better than every Windows on Raspberry user."
+"Who knew a sour berry with too many seeds was this capable?"
+"Introducing: a really good way to use up storage space!"
+"How many of these captions do I have to write!?" -Botspot
+"Is pure Linux better? Yes. But this helps more people stick around."
+"We’re pleased to announce a more efficient way to run inefficient software."
+"PROTIP: Try selecting the lines of text above for an easter egg! :)"
+"Mixing Linux and Windows... what could possibly go wrong?"
+"Turns out Raspberry and Windows do mix... forming a very crunchy smoothie."
+"Now your Pi can experience the joy of Windows updates!"
+"Your Pi is about to feel so sophisticated. Or nauseated. Maybe both. Not sure."
+"Because there is no true difference between ‘unsupported’ and ‘fun challenge.’"
+"It’s Linux... It’s Windows... It’s BVM!!"
+"Like my logo? Build your own logo with: https://github.com/Botspot/unicode-art"
+"With BVM you get the best of both worlds... or at least bragging rights."
+"Because nobody stopped to ask if this was a good idea. But clearly it is :)"
+"This was a good reason to stay up all night writing bash scripts" -Botspot
+"Let’s find out if your hardware has quality memory and cooling. >:)"
+"They said raspberries support windows. Wrong. Now the wall is stained pink."
+"Run Windows 11 on a Pi and impress... well, mostly yourself."
+"This is definitely what the Linux developers intended."
+"Finally, a Windows 11 VM without any dark magic or human sacrifice required."
+"Linux + Windows = A match made in... well, somewhere interesting."
+"They said Windows on ARM was a bad idea. And I took that personally."
+"Perfect for proving that ‘just because you can’ is a good enough reason!"
+"Achievement unlocked: Running Windows where it absolutely should not be."
+"Because sometimes, you just really need to run Notepad on a potato."
+"Minimum requirements? How about minimum suggestions. That’s better."
+"The only thing more surprising than this working... is how well it works."
+"Think of this as a very elaborate benchmark... for both you and your hardware."'
+#\e[103m\e[30m"SUPPORT the college student who made BVM! He lost family support recently and would prefer to not become homeless. :) \e[0m\e[5m\e[4m\e[96mhttps://github.com/sponsors/botspot\e[0m\e[103m\e[30m   "\e[0m'
+  echo -e "$funny_messages" | shuf | sed -n $((RANDOM%10+1))p | tee /dev/stderr | (grep -q DONATE && sleep 10)
+}
+
+get_space_free() { #Input: folder to check. Output: show many bytes can fit before the disk is full
+  #this function is from wor-flasher
+  df -B 1 "$1" --output=avail | tail -1 | tr -d ' '
+}
+
+list_download_languages() {
+  #derived from quickemu project
+  echo -e "Arabic\nBrazilian Portuguese\nBulgarian\nChinese (Simplified)\nChinese (Traditional)\nCroatian\nCzech\nDanish\nDutch\nEnglish (United States)\nEnglish International
+Estonian\nFinnish\nFrench\nFrench Canadian\nGerman\nGreek\nHebrew\nHungarian\nItalian\nJapanese\nKorean\nLatvian\nLithuanian\nNorwegian\nPolish\nPortuguese\nRomanian\nRussian
+Serbian Latin\nSlovak\nSlovenian\nSpanish\nSpanish (Mexico)\nSwedish\nThai\nTurkish\nUkrainian"
+}
+
+process_exists() { #return 0 if the $1 PID is running, otherwise 1
+  #taken from pi-apps api
+  [ -z "$1" ] && return 1
+  
+  if [ -f "/proc/$1/status" ];then
+    return 0
+  else
+    return 1
+  fi
+}
+
+umount_retry() { #wrapper for umount command - try several times if it is still mounted
+  #necessary because first umount attempt usually says "target is busy"
+  local tries=0
+  sync
+  while mountpoint -q "$1"; do
+    sudo umount "$1" &>/dev/null || sleep 1
+    if [ "$tries" == 10 ];then
+      warning "Could not unmount $1, unmounting it lazily."
+      sudo umount -l "$1"
+    fi
+    tries=$((tries+1))
+  done
+}
+
+mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_port folder (rdp_port is just a convenient way to prevent conflict
+  sudo modprobe nbd || error "mount_qcow2: 'sudo modprobe nbd' failed"
+  
+  #find /dev/nbd* device not in use
+  local i=0
+  while [ ! -z "$(lsblk /dev/nbd$i -no MOUNTPOINTS)" ];do
+    "$nbd_device"
+    [ ! -b /dev/nbd$i ] && error "mount_qcow2: Failed to find available nbd device! All seem to be taken. Please run lsblk to see why."
+    i=$((i+1))
+  done
+  local nbd_device=/dev/nbd$i
+  
+  if ! sudo qemu-nbd --connect="$nbd_device" "$1";then
+    #make device failed, unmount and cleanup
+    sudo qemu-nbd --disconnect "$nbd_device"
+    error "mount_qcow2: failed to connect $1 to nbd device for mounting"
+  fi
+  
+  sync
+  if [ ! -b ${nbd_device}p4 ];then #the partition we want is partition 4
+    sudo qemu-nbd --disconnect "$nbd_device"
+    error "mount_qcow2: Partition 4 not found"
+  fi
+  
+  sudo mkdir -p /media/$USER/bvm-mount$rdp_port
+  umount_retry /media/$USER/bvm-mount$rdp_port
+  if ! sudo mount ${nbd_device}p4 /media/$USER/bvm-mount$rdp_port ;then
+    #mount failed, unmount and cleanup
+    unmount_qcow2
+    error "mount_qcow2: mount command failed"
+  fi
+}
+
+unmount_qcow2() { #unmount what was mounted by the mount_qcow2 function
+  #find which /dev/nbd* is used by this mountpoint, before unmounting it
+  local nbd_device="/dev/$(lsblk -no MOUNTPOINTS,PKNAME | grep "^/media/$USER/bvm-mount$rdp_port " | awk '{print $2}' | head -n1)"
+  
+  umount_retry /media/$USER/bvm-mount$rdp_port
+  
+  #try to remove the nbd device only if we found it earlier
+  if [ ! -z "$nbd_device" ];then
+    local errors
+    errors="$(sudo qemu-nbd --disconnect "$nbd_device" 2>&1)" || error "unmount_qcow2: '$errors'"
+  fi
+  sudo rmdir /media/$USER/bvm-mount$rdp_port
+}
+
+download_windows_11arm64() { #download latest stable windows 11 ISO language $download_language to $vmdir
+  # This function is adapted from the Mido project:
+  # https://github.com/ElliotKillick/Mido
+  # Download newer consumer Windows versions from behind gated Microsoft API
+  # Further adapted by Botspot for use in BVM
+  
+  local session_id=""
+  local iso_download_page_html=""
+  local product_edition_id=""
+  local language_skuid_table_json=""
+  local sku_id=""
+  local iso_download_link_json=""
+  local iso_download_link=""
+  local url="https://www.microsoft.com/en-us/software-download/windows11arm64"
+  local failed_instructions="    Using a web browser, please manually download the Windows 11 ARM64 ISO from: ${url}
+    Save the downloaded ISO to: ${vmdir}/installer.iso
+    Make sure the file is named installer.iso
+    Then run this action again."
+  
+  [ -z "$download_language" ] && error "download_windows_11arm64: language must be specified in download_language variable Available languages:\n$(list_download_languages | tr '\n' '\t' | sed 's/\t/, \t/g')"
+  list_download_languages | grep -qF "$download_language" || error "download_windows_11arm64: unrecognized language '$download_language'. Available languages:\n$(list_download_languages | tr '\n' '\t' | sed 's/\t/, \t/g')"
+  [ -z "$vmdir" ] && error "download_windows_11arm64: download folder for installer.iso must be specified in vmdir variable"
+  
+  status "Downloading Windows 11 ARM64 (${download_language})"
+  
+  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0"
+  session_id="$(uuidgen)"
+  
+  # Get product edition ID for latest release of given Windows version
+  # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
+  # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
+  # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
+  # Remove "Accept" header that curl sends by default
+  echo "  - Parsing download page: ${url}"
+  iso_download_page_html="$(curl --disable --silent --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || \
+    error "    Failed to scrape the webpage on step 1.\n$failed_instructions"
+  
+  echo -n "  - Getting Product edition ID: "
+  # tr: Filter for only numerics to prevent HTTP parameter injection
+  # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
+  product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
+  echo "$product_edition_id"
+  
+  echo "  - Permit Session ID: $session_id"
+  # Permit Session ID
+  # "org_id" is always the same value
+  curl --disable --silent --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || \
+    error "    Failed to scrape the webpage on step 2.\n$failed_instructions"
+  
+  local profile="606624d44113"
+  
+  echo -n "  - Getting language SKU ID: "
+  # Get language -> skuID association table
+  language_skuid_table_json="$(curl --disable -s --fail --max-filesize 100K --proto =https --tlsv1.2 --http1.1 "https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=${profile}&ProductEditionId=${product_edition_id}&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=${session_id}")" || \
+    error "    Failed to scrape the webpage on step 3.\n$failed_instructions"
+  
+  debug "language_skuid_table_json='$language_skuid_table_json'"
+  sku_id="$(echo "${language_skuid_table_json}" | jq -r '.Skus[] | select(.LocalizedLanguage=="'"${download_language}"'" or .Language=="'"${download_language}"'").Id')"
+  echo "$sku_id"
+  [ -z "$sku_id" ] && error "    Failed to get the sku_id\n$failed_instructions"
+  
+  echo "  - Getting ISO download link..."
+  # Get ISO download link
+  # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
+  # --referer: Required by Microsoft servers to allow request
+  iso_download_link_json="$(curl --disable -s --fail --referer "$url" "https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=${profile}&productEditionId=undefined&SKU=${sku_id}&friendlyFileName=undefined&Locale=en-US&sessionID=${session_id}")"
+  
+  if ! [ "$iso_download_link_json" ]; then
+    # This should only happen if there's been some change to how this API works
+    error "    Microsoft servers gave an empty response to the request for an automated download.\n$failed_instructions"
+  fi
+  
+  if echo "$iso_download_link_json" | grep -q "Sentinel marked this request as rejected."; then
+    error "    Microsoft blocked the automated download request based on your IP address. Follow the instructions below, or wait an hour and try again to see if your IP has been unblocked.\n$failed_instructions"
+  fi
+  
+  # Filter for ARM 64-bit ISO download URL
+  iso_download_link="$(echo "${iso_download_link_json}" | jq -r '.ProductDownloadOptions[].Uri' | grep Arm64)"
+  
+  if ! [ "$iso_download_link" ]; then
+    # This should only happen if there's been some change to the download endpoint web address
+    debug "iso_download_link_json='${iso_download_link_json}'"
+    error  "  - Microsoft servers gave no download link to the request for an automated download. Please manually download this ISO in a web browser: $url"
+  fi
+  
+  echo "  - URL: ${iso_download_link%%\?*}"
+  debug "  - iso_download_link='${iso_download_link}'"
+  
+  # Download ISO
+  wget -nv --show-progress "${iso_download_link}" -O "${vmdir}/installer.iso" || error "Failed to download Windows 11 installer.iso from Microsoft\n$failed_instructions"
+}
+
+patch_iso_noprompt() { #force the specified windows iso not require keypress to boot into installer - by botspot
+
+  #replace inside the ISO efisys.bin with contents of efisys_noprompt.bin
+  #efisys.bin contains cdboot.pdb string
+  #efisys_noprompt.bin contains cdboot_noprompt.pdb string
+  #both files are the exact same length, so as long as they are in one piece in the ISO, we can replace one with the other using dd.
+  #find and extract efisys_noprompt.bin, then find instances of efisys.bin and replace with efisys_noprompt.bin
+  
+  #where in the efisys.bin file the 'cdboot.pdb' string is,
+  #and where in the efisys_noprompt.bin file the 'cdboot_noprompt.pdb' string is (how far to backtrack)
+  #found with grep -abo 'cdboot\.pdb' '/mnt/winiso/efi/microsoft/boot/efisys.bin' | awk -F: '{print $1}'
+  local match_offset=934748
+  
+  #the total length of efisys.bin or efisys_noprompt.bin files (how much data to copy)
+  #found with wc -c
+  local file_length=1720320
+  
+  local ISO="$1"
+  local match
+  
+  #first find and extract efisys_noprompt.bin in ISO, to avoid distributing it ourselves
+  status "Modifying Windows ISO to boot to installer without keypress:"
+  echo "  - Searching for efisys_noprompt.bin to extract..."
+  while read match ;do
+    local start_offset=$((match-match_offset))
+    
+    #check if this is the expected start of file, - there is one false positive in testing
+    if [ "$(dd if="$ISO" skip=$start_offset bs=1 count=16 status=none | base64)" != '6zyQTVNETUYzLjIAAgIBAA==' ];then
+      echo "  - negative match at byte $start_offset"
+      continue #back to start of loop, avoid overwriting random bits of the ISO if we did not find the expected start of the file
+    fi
+    echo "  - positive match at byte $start_offset"
+    
+    #copy the file to /tmp and exit the loop
+    echo "  - Extracting it..."
+    dd if="$ISO" bs=1 skip=$start_offset count="$file_length" of=/tmp/efisys_noprompt.bin status=none
+    break
+    
+  done < <(grep -abo 'cdboot_noprompt\.pdb' "$ISO" | awk -F: '{print $1}')
+  
+  #make sure efisys_noprompt.bin was extracted successfully
+  if [ ! -f /tmp/efisys_noprompt.bin ];then
+    error "Failed to extract efisys_noprompt.bin from ISO!"
+  elif [ "$(shasum /tmp/efisys_noprompt.bin | awk '{print $1}')" != '906e019eb371949290df917e73e387f8a18696d7' ];then
+    error "The extracted efisys_noprompt.bin had an unexpected hash sum"
+  else
+    echo "  - Checksums match! Now searching ISO for sections to replace..."
+  fi
+  
+  #now find byte offsets for efisys.bin in the ISO, and overwrite those sections of the ISO with efisys_noprompt.bin
+  #search for cdboot.pdb in the iso, noting the offsets, and subtracting the offset of cdboot.pdb string to get start offset of file
+  while read match ;do
+    start_offset=$((match-match_offset))
+    
+    #check if this is the expected start of file - there is one false positive in testing
+    if [ "$(dd if="$ISO" skip=$start_offset bs=1 count=16 status=none | base64)" != '6zyQTVNETUYzLjIAAgIBAA==' ];then
+      echo "  - negative match at byte $start_offset, continuing to search..."
+      continue #back to start of loop, avoid overwriting random bits of the ISO if we did not find the expected start of the file
+    fi
+    
+    echo "  - positive match at byte $start_offset, replacing the next $file_length bytes..."
+    dd if=/tmp/efisys_noprompt.bin of="$ISO" bs=1 seek=$start_offset conv=notrunc status=none
+    
+  done < <(grep -abo 'cdboot\.pdb' "$ISO" | awk -F: '{print $1}')
+  
+  rm -f /tmp/efisys_noprompt.bin
+  echo "Done"
+}
+
+get_codename() { #get debian/ubuntu codename
+  #taken from pi-apps
+  if ! command -v lsb_release >/dev/null; then
+    sudo apt update &>/dev/null && \
+    sudo apt-get install -y lsb-release &>/dev/null
+  fi
+  
+  # first check if lsb_release has an upstream option -u
+  # if not, check if there is an upstream-release file
+  # if not, check if there is a lsb-release.diverted file
+  # if not, assume that this is not a ubuntu derivative
+  if lsb_release -a -u &>/dev/null; then
+    # This is a Ubuntu Derivative, checking the upstream-release version info
+    lsb_release -s -c -u
+  elif [ -f /etc/upstream-release/lsb-release ]; then
+    # ubuntu 22.04+ linux mint no longer includes the lsb_release -u option
+    # add a parser for the /etc/upstream-release/lsb-release file
+    source /etc/upstream-release/lsb-release
+    echo "$DISTRIB_CODENAME"
+    unset DISTRIB_ID DISTRIB_DESCRIPTION DISTRIB_RELEASE DISTRIB_CODENAME
+  elif [ -f /etc/lsb-release.diverted ]; then
+    # ubuntu 22.04+ popOS no longer includes the /etc/upstream-release/lsb-release or the lsb_release -u option
+    # add a parser for the new /etc/lsb-release.diverted file
+    source /etc/lsb-release.diverted
+    echo "$DISTRIB_CODENAME"
+    unset DISTRIB_ID DISTRIB_DESCRIPTION DISTRIB_RELEASE DISTRIB_CODENAME
+  else
+    lsb_release -s -c
+  fi
+}
+
+install_dependencies() { #try to install everything BVM needs
+  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen"
+  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios"
+  
+  #using freerdp version 2 instead of 3 because it does not freeze on login and has more reliable clipboard sync
+  if [ "$XDG_SESSION_TYPE" == wayland ];then
+    required_commands+=" wlfreerdp"
+    apt_packages+=" freerdp2-wayland"
+  else
+    required_commands+=" xfreerdp"
+    apt_packages+=" freerdp2-x11"
+  fi
+  
+  #check if any commands are absent
+  local IFS=' '
+  local cmd
+  local installneeded=0
+  for cmd in $required_commands ;do
+    if [ -f /usr/bin/$cmd ];then
+      continue
+    elif command -v "$cmd" >/dev/null ;then
+      continue
+    else
+      installneeded=1
+      break
+    fi
+  done
+  #Not all dependencies have commands. Check for absent needed files
+  if [ ! -f /usr/share/qemu-efi-aarch64/QEMU_EFI.fd ];then
+    #qemu-efi-aarch64 is missing
+    installneeded=1
+  elif [ ! -f /usr/lib/aarch64-linux-gnu/remmina/plugins/remmina-plugin-rdp.so ];then
+    #remmina-plugin-rdp is missing
+    installneeded=1
+  elif [ ! -f /usr/share/seabios/vgabios-ramfb.bin ];then
+    #seabios is missing
+    installneeded=1
+  fi
+  
+  #hide the changelog
+  export DEBIAN_FRONTEND=noninteractive
+  #install dependencies with apt, if apt is found
+  if [ "$installneeded" == 1 ] && command -v apt >/dev/null;then
+    sudo apt install -y $apt_packages || error "APT failed to install required dependencies"
+    
+    #upgrade qemu to version from bookworm-backports
+    if [ "$(get_codename)" == bookworm ];then
+      echo "deb http://deb.debian.org/debian bookworm-backports main contrib non-free non-free-firmware" | sudo tee /etc/apt/sources.list.d/bookworm-backports.list >/dev/null
+      sudo apt update
+      sudo apt install -y -t bookworm-backports --only-upgrade qemu-system-arm || error "Failed to upgrade qemu-system-arm to the version from the Debian bookworm-backports repository."
+    fi
+  elif [ "$installneeded" == 1 ];then
+    #dependencies needed, but this is not a debian distro
+    error "BVM needs these dependencies: $apt_packages\nBVM could not install them for you as your distro is not based on Debian, or at least, the apt command could not be found.\nPlease install the dependencies yourself, then try again."
+  fi
+}
+
+qemu_newer_than() { #check if QEMU is newer than specified version, return 0 if yes, return 1 if no
+  #adapted from pi-apps package_is_new_enough function
+  local qemu_version="$(qemu-system-aarch64 --version | head -n1 | awk '{print $4}')"
+  local compare_version="$1"
+  #given both the package_version and compare_version, see if the greater of the two is the available package's version
+  if [ "$(echo "$qemu_version"$'\n'"$compare_version" | sort -rV | head -n1)" == "$qemu_version" ];then
+    #if so, indicate success
+    return 0
+  else
+    return 1
+  fi
+}
+
+update_check() { #check for updates and reload the script if necessary
+  localhash="$(cd "$DIRECTORY" ; git rev-parse HEAD)"
+  latesthash="$(git ls-remote https://github.com/Botspot/bvm HEAD | awk '{print $1}')"
+  if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
+    if [ "$disable_updates" == true ];then
+      echo "Updates available, but you have auto-updates disabled."
+    fi
+    echo "Auto-updating BVM for the latest features and improvements..."
+    (cd "$DIRECTORY"
+    git restore . #abandon changes to tracked files (otherwise users who modified this script are left behind)
+    git pull | cat #piping through cat makes git noninteractive
+    return "${PIPESTATUS[0]}")
+    
+    if [ $? == 0 ];then
+      echo "git pull finished. Reloading script..."
+      "$DIRECTORY/bvm" "$@"
+      exit $?
+    else
+      warning "update_check: git pull failed. Continuing..."
+    fi
+  fi
+}
+
+copy_icons() { #install icons to a location where the panel will notice them
+  mkdir -p ~/.local/share/icons/hicolor/scalable/apps
+  if [ ! -f ~/.local/share/icons/hicolor/scalable/apps/wlfreerdp.png ];then
+    ln -sf "$DIRECTORY/resources/icon.png" ~/.local/share/icons/hicolor/scalable/apps/qemu.png
+    ln -sf "$DIRECTORY/resources/icon.png" ~/.local/share/icons/hicolor/scalable/apps/wlfreerdp.png
+    ln -sf "$DIRECTORY/resources/icon.png" ~/.local/share/icons/hicolor/scalable/apps/xfreerdp.png
+  fi
+  #for wf-panel-pi at least, updating icon caches seems to do no good
+}
+
+DIRECTORY="$(readlink -f "$(dirname "$0")")"
+
+mode="$1"
+vmdir="$2"
+if [ -z "$mode" ];then
+  (error "Must specify a mode")
+  mode=help #display help message then exit
+else
+  #check if it is okay for $vmdir to not exist
+  case "$mode" in 
+    help|list-languages|gui)
+      true #no vmdir needed
+      ;;
+    new-vm)
+      #vmdir needed.
+      if [ -z "$vmdir" ];then
+        (error "Must specify a directory for this mode")
+        mode=help #display help message then exit
+      fi
+      ;;
+    *)
+      #vmdir needed. vmdir must exist for these modes
+      if [ -z "$vmdir" ];then
+        (error "Must specify a directory for this mode")
+        mode=help #display help message then exit
+      elif [ ! -d "$vmdir" ];then
+        (error "Provided VM directory '$vmdir' does not exist! Allow this script to create one with the \e[4mnew-vm\e[24m mode.")
+        mode=help #display help message then exit
+      fi
+      ;;
+  esac
+fi
+
+IFS=$'\n'
+[ "$nosplash" != true ] && generate_logo
+
+#get configuration settings from bvm-config file
+if [ ! -z "$vmdir" ];then
+  if [ -f "$vmdir/bvm-config" ];then
+    debug "sourcing $vmdir/bvm-config"
+    . "$vmdir/bvm-config"
+  fi
+fi
+[ -z "$vm_username" ] && vm_username=Win11ARM
+[ -z "$vm_password" ] && vm_password=win11arm
+[ -z "$rdp_port" ] && rdp_port=3389
+[ -z "$download_language" ] && download_language="English (United States)"
+[ -z "$debloat" ] && debloat=true
+[ -z "$disksize" ] && disksize=40
+if [ -z "$vm_mem" ];then
+  #choose RAM to allocate to VM - 1GB less than total RAM
+  vm_mem="$(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024/1024))"
+  #edge case for 2GB Pies: allocate 2GB and hope for the best (2GB is the minimum it seems)
+  [ "$vm_mem" == 1 ] && vm_mem=2
+  [ "$mode" == firstboot ] && [ "$vm_mem" -gt 4 ] && vm_mem=4 #more than 4GB has no benefit for firstinstall
+fi
+
+debug "DIRECTORY: $DIRECTORY
+mode: $mode
+vmdir: $vmdir
+vm_username: $vm_username
+vm_password: $vm_password
+rdp_port: $rdp_port
+download_language: $download_language"
+
+#check for updates
+update_check
+copy_icons
+
+#check system for compatibility
+if ! sudo modprobe kvm ;then
+  error "KVM kernel module is needed but missing. Command that failed was 'sudo modprobe kvm'"
+fi
+#check RAM and choose how much to allocate the VM
+if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -le $((1*1024*1024)) ];then
+  error "Your system needs at least 2 GB of RAM. Be aware that a VM might be able to boot on 1 GB of RAM, but it cannot install Windows with less than 2 GB."
+fi
+install_dependencies || exit 1
+
+echo "BVM mode $mode"
+
+case "$mode" in
+  help)
+    echo -e "BVM HELP:   --------------------------------------------------------------------
+\e[96mAll primary modes: new-vm, download, prepare, firstboot, boot, connect, mount\e[0m
+You generally want to run the modes in that order.
+Additional modes: help, list-languages, boot-nodisplay, boot-ramfb, boot-gtk, connect-freerdp, connect-remmina
+
+To get a fresh VM up and running, use a sequence like this:
+\e[96m$0 new-vm $HOME/win11\e[0m
+ This makes a config file: $HOME/win11/bvm-config   <--- Please read it!
+\e[96m$0 download $HOME/win11\e[0m
+ This downloads Windows and necessary drivers.
+\e[96m$0 prepare $HOME/win11\e[0m
+ This bundles everything up to get ready for first boot.
+\e[96m$0 firstboot $HOME/win11\e[0m
+ If the Windows install is interrupted, just run this step again.
+ Be aware: when Windows finishes installing, the VM will shutdown.
+ All .iso files and the unattended folder could be removed here to save space.
+\e[96m$0 boot $HOME/win11\e[0m
+ Main command to use the VM.
+ This works, but is a little laggy and lacks crucial features.
+ It is recommended to boot the VM headless and then connect to it via RDP:
+\e[96m$0 boot-nodisplay $HOME/win11\e[0m
+ Then in a second shell, connect to the RDP service:
+\e[96m$0 connect $HOME/win11\e[0m
+ The connect mode has better audio, clipboard sync, file sharing, dynamic screen resizing, and a higher frame rate.
+ Default connect mode uses the FreeRDP client, which is faster, but sometimes freezes on login. If this happens try the connect-remmina mode.
+ Mount the Windows main hard drive with:
+\e[96m$0 mount $HOME/win11\e[0m
+ Be aware: the VM needs to be shut down properly to mount in read/write mode." | sed "s+$HOME/+~/+g"
+    ;;
+    
+  list-languages)
+    list_download_languages
+    ;;
+    
+  gui)
+    
+    [ -z "$vmdir" ] && vmdir=$HOME/win11
+    clickhandler() {
+      
+      local define_step_complete="step_complete() { #runs after our main command, keeps the terminal open and 
+        if [ \$? == 0 ];then
+          echo -e '\e[102m\e[30mOperation succeeded. Please close this terminal to proceed to the next step.!\e[0m'
+          read enter
+        else
+          echo -e '\e[101m\e[30mOperation failed! Please review the errors above.\e[0m'
+          read enter
+        fi
+      }
+      "
+      
+      run_in_terminal() {
+        #echo "$1" 1>&2
+        "${DIRECTORY}/resources/terminal-run" "$define_step_complete$1" "BVM operation in progress"
+      }
+      #uncomment to skip running steps for debugging
+      #run_in_terminal() {
+      #  step_complete "$(echo "$1" | awk '{print $NF}')" 1>&2
+      #}
+      
+      #undo our hack and allow text editors to use wayland
+      unset GDK_BACKEND
+      export GDK_BACKEND
+      
+      echo "clickhandler input $@" 1>&2
+      case "$1" in
+        newvm) #1
+          if [ -f "$vmdir/gui-steps-complete" ];then
+            #pick location for new VM, this one already exists
+            vmdir="$(yad --class wlfreerdp --name wlfreerdp --title "BVM" --center --directory --file --save --width 500 --text="$vmdir already exists."$'\n'"Proceed only if you are trying to make a second VM.")"
+            if [ ! -z "$vmdir" ] && [ "$vmdir" != "$HOME" ];then
+              kill $YAD_PID
+              export vmdir
+              setsid "${DIRECTORY}/bvm" gui 1>&2
+            fi
+          else
+            run_in_terminal "${DIRECTORY}/bvm new-vm '$vmdir' ; step_complete 1"
+          fi
+          ;;
+        editconf) #2
+          #workaround PiOS opening this in Chromium for some reason
+          if command -v geany >/dev/null ;then
+            setsid geany "$vmdir/bvm-config" &
+          else
+            setsid xdg-open "$vmdir/bvm-config" &
+          fi
+          sleep 5
+          #mark this step as complete
+          echo "2" > "$vmdir/gui-steps-complete"
+          ;;
+        download) #3
+          run_in_terminal "${DIRECTORY}/bvm download '$vmdir' ; step_complete 3"
+          ;;
+        prepare) #4
+          run_in_terminal "${DIRECTORY}/bvm prepare '$vmdir' ; step_complete 4"
+          ;;
+        firstboot) #5
+          run_in_terminal "${DIRECTORY}/bvm firstboot '$vmdir' ; step_complete 5"
+          ;;
+        boot) #6
+          #view mode provided on $2
+          
+          case "$2" in
+            Direct)
+              run_in_terminal "${DIRECTORY}/bvm boot '$vmdir' ; step_complete 6"
+              ;;
+            FreeRDP)
+              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete 6"
+              ;;
+            Remmina)
+              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete 6"
+              ;;
+          esac
+          ;;
+      esac
+      
+      #unlock the next button (overwrites its own button if action failed, effectively doing nothing)
+      case "$(cat "$vmdir/gui-steps-complete")" in
+        1)
+          echo "2:$button2"
+          ;;
+        2)
+          echo "3:$button3"
+          ;;
+        3)
+          echo "4:$button4"
+          ;;
+        4)
+          echo "5:$button5"
+          ;;
+        5)
+          echo "6:$button6"
+          ;;
+      esac
+      exit 0
+    }
+    
+    export -f clickhandler
+    export DIRECTORY vmdir
+    
+    export button2="@bash -c 'clickhandler editconf'"
+    export button3="@bash -c 'clickhandler download'"
+    export button4="@bash -c 'clickhandler prepare'"
+    export button5="@bash -c 'clickhandler firstboot'"
+    export button6="@bash -c 'clickhandler boot %7'"
+    initial_button2="@disabled@"
+    initial_button3="@disabled@"
+    initial_button4="@disabled@"
+    initial_button5="@disabled@"
+    initial_button6="@disabled@"
+    if [ ! -f "$vmdir/gui-steps-complete" ];then
+      steps_complete=0
+    else
+      steps_complete="$(cat "$vmdir/gui-steps-complete")"
+      #based on the last complated step, unlock the appropriate buttons
+      if [ "$steps_complete" -ge 1 ];then
+        initial_button2="$button2"
+      fi
+      if [ "$steps_complete" -ge 2 ];then
+        initial_button3="$button3"
+      fi
+      if [ "$steps_complete" -ge 3 ];then
+        initial_button4="$button4"
+      fi
+      if [ "$steps_complete" -ge 4 ];then
+        initial_button5="$button5"
+      fi
+      if [ "$steps_complete" -ge 5 ];then
+        initial_button6="$button6"
+      fi
+    fi
+    
+    #the window freezes while running a task, and wayland times it out, so run on xwayland
+    # <a href="\""https://github.com/sponsors/botspot"\"">Support Botspot</a>
+    GDK_BACKEND=x11 yad --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
+      --image "${DIRECTORY}/resources/icon-80.png" --image-on-top --no-buttons \
+      --text="Botspot Virtual Machine, at your service.$([ "$vmdir" != "$HOME/win11" ] && echo -e "\nvmdir: <u>$vmdir</u>")" \
+      --field="<b>New Virtual Machine</b>!${DIRECTORY}/resources/1.png":FBTN "@bash -c 'clickhandler newvm'" \
+      --field="<b>Edit configuration file</b>!${DIRECTORY}/resources/2.png":FBTN "$initial_button2" \
+      --field="<b>Download components</b>!${DIRECTORY}/resources/3.png":FBTN "$initial_button3" \
+      --field="<b>Prepare for installation</b>!${DIRECTORY}/resources/4.png":FBTN "$initial_button4" \
+      --field="<b>Install Windows 11</b>!${DIRECTORY}/resources/5.png":FBTN "$initial_button5" \
+      --field="<b>Run Windows 11</b>!${DIRECTORY}/resources/6.png":FBTN "$initial_button6" \
+      --field="Viewing mode":CB "Direct!^FreeRDP!Remmina"
+    ;;
+  new-vm)
+    #initializes a new vmdir
+    
+    mkdir -p "$vmdir" || error "failed to create vmdir '$vmdir'!"
+    
+    #copy configuration file
+    cp -n "${DIRECTORY}/resources/bvm-config" "$vmdir"
+    
+    #for GUI: track which step was completed
+    echo 1 > "$vmdir/gui-steps-complete"
+    
+    #ensure there is 40G of free space to download everything (user can ignore this error except on GUI)
+    if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
+      error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the disk size in the config file to get around this error."
+    fi
+    
+    ;;
+  download) #get everything downloaded, and leave it in a state where user can make changes easily
+    
+    #vmdir and $download_language must be set for this function
+    download_windows_11arm64 || exit 1
+    
+    status "Downloading virtio drivers"
+    wget -nv --show-progress "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso" -O "${vmdir}/virtio-win.iso" || error "Downloading virtio-win.iso failed"
+    
+    status "Downloading Windows debloating script"
+    mkdir -p "$vmdir/unattended"
+    #this debloat script is run by the autounattend.xml file on first login
+    if [ ! -d "$vmdir/unattended/Win11Debloat" ] && [ "$debloat" == true ];then
+      (cd "$vmdir/unattended" && git clone "https://github.com/Raphire/Win11Debloat") || "git clone of Win11Debloat repository failed"
+    fi
+    
+    #copy autounattend.xml script to unattended/ now
+    #this gives the user a chance to change it before it's packaged into unattended.iso
+    cp -f "$DIRECTORY/resources/autounattend.xml" "$vmdir/unattended" || error "failed to copy autounattend.xml to unattended folder"
+    #copy my script that runs on first login of vm
+    cp -f "$DIRECTORY/resources/firstlogin.ps1" "$vmdir/unattended"
+    
+    #edit to pre-choose language and keyboard layout ahead of time for the top 2 most common locales
+    if ! grep -qF "Microsoft-Windows-International-Core-WinPE" "$vmdir/unattended/autounattend.xml" ;then
+      if [ "$download_language" == "English (United States)" ];then
+        sed -i 's+<settings pass="windowsPE">+<settings pass="windowsPE">\n    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="arm64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n      <SetupUILanguage>\n        <UILanguage>en-US</UILanguage>\n      </SetupUILanguage>\n      <InputLocale>0409:00000409</InputLocale>\n      <SystemLocale>en-US</SystemLocale>\n      <UILanguage>en-US</UILanguage>\n      <UserLocale>en-US</UserLocale>\n    </component>+g' "$vmdir/unattended/autounattend.xml"
+      elif [ "$download_language" == "English International" ];then
+        sed -i 's+<settings pass="windowsPE">+<settings pass="windowsPE">\n    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="arm64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n      <SetupUILanguage>\n        <UILanguage>en-GB</UILanguage>\n      </SetupUILanguage>\n      <InputLocale>0809:00000809</InputLocale>\n      <SystemLocale>en-GB</SystemLocale>\n      <UILanguage>en-GB</UILanguage>\n      <UserLocale>en-GB</UserLocale>\n    </component>+g' "$vmdir/unattended/autounattend.xml"
+      fi
+    fi
+    #set desired username and password
+    sed -i "s/win11arm/${vm_password}/g ; s/Win11ARM/${vm_username}/g" "$vmdir/unattended/autounattend.xml"
+    
+    #copy out the arm64 virtio drivers (avoids having 2 drives which trade drive letters randomly between boots)
+    status "Extracting VirtIO drivers..."
+    TMP="$(mktemp -d)"
+    sudo mount -r "$vmdir/virtio-win.iso" "$TMP" || error "failed to mount virtio-win.iso for extracting files"
+    IFS=$'\n'
+    for dir in $(find "$TMP" -type d -name ARM64 | grep w11) ;do
+      #example value of dir: /tmp/tmp.coL1nQguHD/NetKVM/w11/ARM64
+      drivername="$(echo "$dir" | awk -F/ '{print $4}')" #example value: NetKVM
+      echo "  - $drivername"
+      mkdir -p "$vmdir/unattended/$drivername"
+      if ! cp -rf --no-preserve mode "$dir"/. "$vmdir/unattended/$drivername" ;then
+        umount_retry "$TMP"
+        error "Failed to copy $drivername to $vmdir/unattended"
+      fi
+    done
+    mkdir -p "$vmdir/unattended/guest-agent"
+    cp -f --no-preserve mode "$TMP/guest-agent/qemu-ga-x86_64.msi" "$vmdir/unattended/guest-agent"
+    cp -rf --no-preserve mode "$TMP/cert" "$vmdir/unattended"
+    sync
+    umount_retry "$TMP" || error "Failed to unmount virtio-win.iso, please report this issue"
+    rmdir "$TMP"
+    
+    #no need for virtio iso anymore, now that we have extracted arm64-compatible stuff
+    rm -f "${vmdir}/virtio-win.iso"
+    
+    #the next step will convert unattended/ folder to unattended.iso
+    
+    #for GUI: track which step was completed (skip 2 because step 2 is edit config)
+    if [ 3 -gt "$(cat "$vmdir/gui-steps-complete")" ];then
+      echo 3 > "$vmdir/gui-steps-complete"
+    fi
+    
+    status_green "You should now be ready for the next step: $0 prepare $vmdir"
+    ;;
+    
+  prepare) #take downloaded files and get everything ready for first boot
+    
+    patch_iso_noprompt "$vmdir/installer.iso" || exit 1
+    
+    #make drive to pass to installer (virtio arm drivers with unattended stuff and debloating script)
+    status -n "Making unattended.iso... "
+    #lesson learned: -J -r -allow-lowercase -allow-multidot fixes debloat script names being truncated
+    mkisofs -quiet -l -J -r -allow-lowercase -allow-multidot -o "$vmdir/unattended.iso" "$vmdir/unattended/" || error "\nFailed to create unattended.iso"
+    status_green Done
+    
+    #handle main hard drive creation
+    status "Setting up main hard drive disk.qcow2"
+    if [ -f "$vmdir/disk.qcow2" ];then
+      warning "Proceeding will DELETE your VM's main hard drive and start over with a clean install. ($vmdir/disk.qcow2 already exists)"
+      read -p "Do you want to continue? (Y/n): " answer
+      [ "$answer" == "n" ] && error "Exiting as you requested"
+    fi  
+    rm -f "$vmdir/disk.qcow2" || error "Failed to delete $vmdir/disk.qcow2"
+    
+    status -n "Allocating 40GB for main install drive... "
+    errors="$(qemu-img create -f qcow2 -o cluster_size=2M,nocow=on,preallocation=falloc "$vmdir/disk.qcow2" "${disksize}G" 2>&1)" || error "\nFailed to create $vmdir/disk.qcow2\nErrors:\n$errors"
+    status_green Done
+    
+    #for GUI: track which step was completed
+    if [ 4 -gt "$(cat "$vmdir/gui-steps-complete")" ];then
+      echo 4 > "$vmdir/gui-steps-complete"
+    fi
+    
+    status_green "You should now be ready for the next step: $0 firstboot $vmdir"
+    ;;
+    
+  firstboot) #minimal QEMU command-line to get through OS installation from installer.iso to disk.qcow2
+    
+    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $(nproc) \
+      -name BVM \
+      -pidfile "$vmdir/qemu.pid" \
+      -device ramfb -display gtk,grab-on-hover=on,gl=on \
+      -device qemu-xhci \
+      -device usb-kbd \
+      -device usb-tablet \
+      -device virtio-rng-pci,rng=rng0 -object rng-random,id=rng0,filename=/dev/urandom \
+      -netdev user,id=nic -device virtio-net-pci,netdev=nic \
+      -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+      -drive media=cdrom,index=0,file="$vmdir/installer.iso",if=none,id=installer,readonly=on -device usb-storage,drive=installer \
+      -drive media=cdrom,index=1,file="$vmdir/unattended.iso",if=none,id=unattended,readonly=on -device usb-storage,drive=unattended \
+      -drive file="$vmdir/disk.qcow2",if=virtio,aio=threads,cache=none)
+    
+    debug "full_qemu_flags: " "${full_qemu_flags[@]}"
+    
+    status "Windows should install 100% automatically. This will take several hours."
+    #run qemu with these flags
+    qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    status "QEMU closed."
+    
+    #check disk.qcow2 and remove microsoft defender if debloat enabled
+    mountpoint="/media/$USER/bvm-mount$rdp_port"
+    if ! (mount_qcow2 "$1") || [ ! -f "$mountpoint/Windows/Temp/setup_log.txt" ];then #check for the log left behind by my firstlogin.ps1 script to determine if it was fully installed
+      (unmount_qcow2)
+      error "It appears that Windows installation was not completed in disk.qcow2"
+    fi
+    if [ "$debloat" == true ];then
+      defenderfound=0
+      [ -d "$mountpoint/ProgramData/Microsoft/Windows Defender" ] && defenderfound=1
+      if ! sudo rm -rf "$mountpoint/ProgramData/Microsoft/Windows Defender" "$mountpoint/ProgramData/Microsoft/Windows Defender Advanced Threat Protection"\
+        "$mountpoint/ProgramData/Microsoft/Windows Security Health" "$mountpoint/Program Files/Windows Defender" \
+        "$mountpoint/Program Files/Windows Defender Advanced Threat Protection" "$mountpoint/Windows/System32/smartscreen.dll" \
+        "$mountpoint/Windows/System32/smartscreen.exe" "$mountpoint/Windows/System32/smartscreenps.dll" \
+        "$mountpoint/Windows/SysWOW64/smartscreen.dll" "$mountpoint/Windows/SysWOW64/smartscreenps.dll" ;then
+        unmount_qcow2
+        error "Failed to remove Microsoft Defender from disk.qcow2. Most likely the install was interrupted or the VM encountered an unsafe shutdown."
+      fi
+      [ "$defenderfound" == 1 ] && status_green "Successuflly removed Microsoft Defender from disk.qcow2"
+    fi
+    #if debloat is disabled, all this does is mount the disk.qcow2 to make sure it seems complete
+    unmount_qcow2 || exit 1
+    
+    #for GUI: track which step was completed
+    if [ 5 -gt "$(cat "$vmdir/gui-steps-complete")" ];then
+      echo 5 > "$vmdir/gui-steps-complete"
+    fi
+    status_green "You should now be ready for the next step: $0 boot $vmdir"
+    ;;
+    
+  boot*) #complex QEMU command-line to boot OS for everyday use
+    
+    #choose display mode (ramfb, gtk, none)
+    case "$mode" in
+      boot-nodisplay)
+        display_flags=(-vga none -device virtio-gpu-pci -display none)
+        ;;
+      boot-ramfb)
+        display_flags=(-vga none -device ramfb -display gtk,gl=off,grab-on-hover=on)
+        ;;
+      boot-gtk|boot)
+        display_flags=(-vga none -device virtio-gpu-pci -display gtk,gl=on,grab-on-hover=on)
+        ;;
+      *)
+        error "Unknown suffix after 'boot': '$mode'"
+        ;;
+    esac
+    
+    #determine audio backend to use, try to de-crackle it as much as possible
+    if pgrep pipewire >/dev/null && qemu_newer_than 8.1.0 ;then
+      #Make QEMU use pipewire output backend, if possible
+      debug "Using pipewire audio backend"
+      audio_flags=(-device usb-audio,audiodev=my_audiodev -audiodev "pipewire,id=my_audiodev,out.buffer-length=1000000,out.mixing-engine=off,out.fixed-settings=off")
+      #if QEMU does not support pipewire, fallback to pulseaudio if pipewire's pulseaudio bridge is running
+    elif pgrep pulseaudio >/dev/null || pgrep pipewire-pulse >/dev/null ;then
+      #Make QEMU use pulseaudio output backend
+      debug "Using pulseaudio audio backend"
+      audio_flags=(-device usb-audio,audiodev=my_audiodev -audiodev "pa,id=my_audiodev,out.buffer-length=1000000")
+    else
+      #Make QEMU use pulseaudio output backend (fallback)
+      debug "Using alsa audio backend"
+      audio_flags=(-device usb-audio,audiodev=my_audiodev -audiodev "alsa,id=my_audiodev,out.buffer-length=1000000")
+    fi
+    
+    #handle USB forwarding preferences (handled by config file now)
+    forward_usb=05dc:a720
+    IFS=$'\n'
+    for line in $forward_usb ;do
+      usb_forwarding_flags=(-device usb-host,vendorid=0x'05dc',productid=0x'a720',driver=usb-host)
+    done
+    
+    #handle network passthrough preferences
+    
+    #To allow multiple VMs and RDP connections, pick a unique port for each one (handled by config file now)
+    #while sudo lsof -nP -i:"${rdp_port}" >/dev/null ;do
+      #start with 3389, but increment if necessary
+    #  rdp_port=$((rdp_port+1))
+    #done
+    #debug "found available port: $rdp_port"
+    
+    #forward guest's port 3389 to localhost port of our choice (handled by config file now)
+    #network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
+    
+    #all QEMU flags are combined together here
+    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $(nproc) \
+      -name BVM,process=bvm \
+      -pidfile "$vmdir/qemu.pid" \
+      -device virtio-balloon \
+      -device virtio-serial-pci \
+      "${display_flags[@]}" \
+      -device qemu-xhci \
+      -device usb-kbd \
+      -device usb-tablet \
+      "${usb_forwarding_flags[@]}" \
+      "${audio_flags[@]}" \
+      -rtc base=localtime,clock=host,driftfix=none \
+      -device virtio-rng-pci,rng=rng0 -object rng-random,id=rng0,filename=/dev/urandom \
+      "${network_flags[@]}" \
+      -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+      -drive file="$vmdir/disk.qcow2",if=virtio,discard=unmap,aio=threads,cache=none)
+    
+    debug "full_qemu_flags: " "${full_qemu_flags[@]}"
+    
+    #run qemu with these flags
+    qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    
+    ;;
+  connect*)
+    #make sure the qemu process is running
+    if ! process_exists "$(cat "$vmdir/qemu.pid" 2>/dev/null)" ;then
+      error "QEMU does not appear to be running. You need to run the VM first before you can view its screen."
+    fi
+    
+    if [ "$XDG_SESSION_TYPE" == wayland ];then
+      freerdp_command="wlfreerdp"
+    else
+      freerdp_command="xfreerdp"
+    fi
+    
+    #wait for network port to open, indicating the machine is ready for connection
+    status -n "Waiting for RDP service on VM to start listening on port $rdp_port... "
+    while true;do
+      #Once the RDP port to open, it means the VM is ready for connections
+      if nmap -p "$rdp_port" --script="${DIRECTORY}/resources/rdp-detector.nse" localhost | grep -qF 'RDP service detected';then
+        break
+      elif ! process_exists "$(cat "$vmdir/qemu.pid" 2>/dev/null)" ;then
+        error "\nQEMU process is no longer running. Maybe the OS failed to boot."
+      fi
+      sleep 3
+    done
+    status_green Done
+    
+    case "$mode" in
+      connect-freerdp|connect)
+        
+        freerdp_flags=(/v:127.0.0.1:$rdp_port /u:$vm_username /p:$vm_password /relax-order-checks /cert:ignore +auto-reconnect \
+          /dynamic-resolution /sound +window-drag -sec-rdp -sec-tls +offscreen-cache +home-drive +menu-anims +multitouch \
+          -compression -encryption +drives /auto-reconnect-max-retries:10 +async-input +async-channels +clipboard +gfx-progressive \
+          /gfx +aero +bitmap-cache /t:"BVM connect")
+        #support a reduced graphics mode that can be enabled in the config file - for x11 mainly
+        if [ "$reduce_graphics" == true ];then
+          freerdp_flags+=(-window-drag -aero -menu-anims)
+        fi
+        
+        $freerdp_command "${freerdp_flags[@]}" "${add_freerdp_flags[@]}"
+        ;;
+      connect-remmina)
+        
+        #change remmina's graphical settings based on reduce_graphics setting
+        if [ "$reduce_graphics" == true ];then
+          quality=0
+        else
+          quality=9
+        fi
+        #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
+        cp -n "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
+        echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality
+        
+        #now run remmina with its newly created/updated config file
+        remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon
+        ;;
+    esac
+    ;;
+  mount)
+    
+    mount_qcow2 "$vmdir/disk.qcow2"
+    status "$vmdir/disk.qcow2 is now mounted to /media/$USER/bvm-mount$rdp_port"
+    read -p "Press enter to unmount"
+    unmount_qcow2
+    ;;
+  *)
+    error "unknown mode '$mode'. Run $0 help to see available options."
+    ;;
+esac
+
+exit 0
+
+#Below is botspot's scratchpad of notes for getting this running. It is included here for future reference.
+#No commands below will be run by this script. so they can be uncommented.
+
+#Primary information sources that I used for reference:
+#https://youtu.be/HOwslWR8LyY
+#https://github.com/quickemu-project/quickemu
+
+#if the install fails, use the mount mode and check for these files:
+#/media/pi/bvm-mount/$Windows.~BT/Sources/Panther/setuperr.log
+#/media/pi/bvm-mount/Windows/Panther/setuperr.log
+#/media/pi/bvm-mount/Windows/Panther/UnattendGC/setupact.log
+
+#get w11 lite - https://www.youtube.com/watch?v=HrM3xzzgawQ
+#download from https://www.microsoft.com/en-us/evalcenter/download-windows-11-iot-enterprise-ltsc-eval
+#direct download link: https://software-static.download.prss.microsoft.com/dbazure/998969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_IOT_LTSC_EVAL_A64FRE_en-us.iso
+#disable hourly auto-shutdown after 90 days: https://digitalitskills.com/how-to-stop-windows-server-auto-shutdown-every-hour-after-license-expire/
+
+#activate (run in windows) This is from some youtube video I found years back. Supposedly this is not illegal.
+slmgr /ipk W269N-WFGWX-YVC9B-4J6C9-T83GX
+slmgr /skms kms.digiboy.ir
+slmgr /ato
+#https://github.com/Whitecat18/Windows-Activator/blob/main/Windows-Activator.bat
+#https://github.com/CaptainChicky/Activate-Microsoft-products-for-testing-in-virtual-machines
+
+#debloat and unattend:
+#some unattend debloat stuff pulled from https://schneegans.de/windows/unattend-generator/
+#https://github.com/Raphire/Win11Debloat
+#https://github.com/agadiffe/WindowsMize/blob/main/WindowsMize.ps1
+#https://github.com/memstechtips/UnattendedWinstall
+
+#vm disk settings benchmarks to speed up firstboot (falloc, cache, cluster_size)
+#https://events19.lfasiallc.com/wp-content/uploads/2017/11/Storage-Performance-Tuning-for-FAST-Virtual-Machines_Fam-Zheng.pdf
+
+#display build information (run in windows)
+reg add "HKCU\Control Panel\Desktop" /v PaintDesktopVersion /t REG_DWORD /d 0x00000001 /f
+
+#logout on RDP disconnect (reduces idle CPU)
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v MaxDisconnectionTime /t REG_DWORD /d 60000 /f
+
+#reset hard drive
+rm -f windows-11arm64/win11.qcow2
+qemu-img create -f qcow2 windows-11arm64/win11.qcow2 40G
+
+#upgrade qemu to 9.2
+sudo apt install -t bookworm-backports --only-upgrade qemu-system-aarch64
+
+#improves sound slightly
+sudo renice -n -20 -p $(pgrep -f /usr/bin/pipewire)
+sudo ionice -c 1 -n 0 -p $(pgrep -f /usr/bin/pipewire)
+
+#botspot's findings:
+-bios #is necessary for some reason
+#specifying installation drives as usb is somehow necessary
+# this breaks boot: -global driver=cfi.pflash01,property=secure,value=on
+-vga none #seems to break the installer - cannot get drivers
+#these fail to load unattended:
+-drive media=cdrom,index=2,file=windows-11arm64/unattended.iso \
+-drive media=cdrom,index=0,file=windows-11arm64/Win11_24H2_EnglishInternational_Arm64.iso \
+-drive media=cdrom,index=1,file=windows-11arm64/virtio-win.iso \
+-display sdl,gl=on #seems to break it. Needs to have no gl=on or sdl only
+-device virtio-gpu-pci,xres=1280,yres=800 #with resolution parameters seems to break boot
+-display spice-app,gl=on #works but display is completely garbled
+-display #option omitted works great, dynamic resizing does work
+-display spice-app #works great, dynamic resizing does not work
+-display gtk (no gl=on) works
+-display sdl #does not work (stuck on boot)
+-vga none -device virtio-gpu-pci -display gtk works
+-vga none -device virtio-gpu-pci -display sdl,gl=es
+#list all display options: qemu-system-aarch64 -help | grep display
+#get working audio: -device usb-audio,audiodev=my_audiodev -audiodev pipewire,id=my_audiodev
+
+#usb device forwarding: https://gist.github.com/ichisadashioko/cfc6446764516bf7eccaffdb3799f041
+ -usb -device usb-host,vendorid=0x'1a40',productid=0x'0101',driver=usb-host
+
+#usb hub forwarding: not sure how to do it
+
+#might help: https://github.com/darkguy2008/hotplugger and https://www.reddit.com/r/VFIO/comments/lbvgpr/hotplugger_real_usb_port_passthrough_for_vfioqemu/
+#might help: https://serverfault.com/questions/667426/pass-an-usb-hub-from-a-kvm-host-to-a-guest-with-libvirt
+
+#shared filesystem
+#https://github.com/virtio-win/kvm-guest-drivers-windows/wiki/Virtiofs:-Shared-file-system
+
+#list all devices: qemu-system-aarch64 -device help
+
+#qemu-img create -f qcow2 windows-11arm64/usb-drive.qcow2 2G
+
+#make ethernet bridge to share IP
+#https://ahelpme.com/linux/howto-do-qemu-full-virtualization-with-macvtap-networking/
+sudo ip link add link eth0 name macvtap0 type macvtap mode bridge
+sudo ip link set macvtap0 up
+sudo chown $USER:$USER /dev/tap$(cat /sys/class/net/macvtap0/ifindex)
+
+#remmina is faster than all other viewing methods that work, has perfect audio too
+#remmina config doc: https://remmina.gitlab.io/remminadoc.gitlab.io/md__builds__remmina_remmina_ci__remmina_wiki__remmina__config__file__options.html
+#cannot run program on startup because exec= uses FreeRDP_AlternateShell which is ignored by Windows 10/11
+#See https://superuser.com/questions/1202758/how-to-use-rdp-alternative-shell-inital-program-in-windows-10education
+#RemoteApp not supported by Remmina
+#https://stackoverflow.com/questions/1226772/can-rdp-clients-launch-remote-applications-and-not-desktops
+remmina -c /home/pi/windows-11arm64/group_rdp_quick-connect_127-0-0-1.remmina --enable-extra-hardening --no-tray-icon
+
+#running apps individually outside a windows display environment using RemoteApp:
+#https://github.com/xiagw/winapps
+xfreerdp3 /v:127.0.0.1 /u:Quickemu /p:quickemu /relax-order-checks /cert:ignore +auto-reconnect /app:program:'%windir%\system32\cmd.exe'
+#It keeps getting X11 errors on window resize events, sadly
+#freerdp needs a fix, see my issue: https://github.com/FreeRDP/FreeRDP/issues/11218
+
+#good command for high speed RDP
+wlfreerdp /v:127.0.0.1 /u:Quickemu /p:quickemu /relax-order-checks /cert:ignore +auto-reconnect /dynamic-resolution /sound /workarea +window-drag -sec-rdp -sec-tls +offscreen-cache +home-drive +menu-anims +multitouch -compression -encryption +drives /auto-reconnect-max-retries:0 +async-input +async-channels +clipboard +gfx-progressive /gfx +aero  /t:"BVM Project - RDP Viewer"
+#best wlfreerdp3 command I could get
+wlfreerdp3 /v:127.0.0.1 /u:Quickemu /p:quickemu /relax-order-checks /cert:ignore +auto-reconnect /dynamic-resolution /sound  -async-update +async-channels /gfx:progressive/clearcodec
+#wlfreerdp3 seems to not copy text from host to guest, so wlfreerdp it is I guess.
+
+#pad firmware files to solve error "qemu-system-aarch64: device requires 67108864 bytes, block backend provides 1966080 bytes"
+#solution found on https://www.kraxel.org/blog/2022/05/edk2-virt-quickstart/
+if false;then
+dd of="windows-11arm64/OVMF_VARS.fd" if="/dev/zero" bs=1M count=64
+dd of="windows-11arm64/OVMF_VARS.fd" if="/usr/share/OVMF/OVMF_VARS.fd" conv=notrunc
+dd of="windows-11arm64/OVMF_CODE.fd" if="/dev/zero" bs=1M count=64
+dd of="windows-11arm64/OVMF_CODE.fd" if="/usr/share/OVMF/OVMF_CODE.fd" conv=notrunc
+#OVMF_CODE does not work, but QEMU_EFI does
+dd of="windows-11arm64/QEMU_EFI.fd" if="/dev/zero" bs=1M count=64
+dd of="windows-11arm64/QEMU_EFI.fd" if="/usr/share/qemu-efi-aarch64/QEMU_EFI.fd" conv=notrunc
+fi
+
+#working command from https://youtu.be/HOwslWR8LyY:
+qemu-system-aarch64 -M virt -cpu host -accel kvm -m 4G -smp 4 \
+-device ramfb -device virtio-gpu-pci -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+-device qemu-xhci -device usb-kbd -device usb-tablet \
+-drive file=Win11_24H2_English_Arm64.iso,media=cdrom,if=none,id=inst -device usb-storage,drive=inst \
+-drive file=virtio-win.iso,media=cdrom,if=none,id=iso -device usb-storage,drive=iso \
+-drive file=win11.qcow2,if=virtio \
+-nic user,model=virtio-net-pci,mac=00:11:22:33:44:55
+
+#shortened version from quickemu (does not work)
+/usr/bin/qemu-system-aarch64 -name windows-11arm64,process=windows-11arm64 -machine virt,highmem=on,accel=kvm \
+-global kvm-pit.lost_tick_policy=discard -global ICH9-LPC.disable_s3=1 \
+-cpu host -smp cores=4,threads=1,sockets=1 -m 4G \
+-device virtio-balloon -pidfile windows-11arm64/windows-11arm64.pid \
+-rtc base=localtime,clock=host,driftfix=slew \
+-vga none -device virtio-gpu-pci,xres=1280,yres=800 -display sdl,gl=on \
+-device virtio-rng-pci,rng=rng0 -object rng-random,id=rng0,filename=/dev/urandom \
+-device usb-ehci,id=input \
+-device usb-kbd,bus=input.0 -k en-us \
+-device usb-tablet,bus=input.0 -audiodev pa,id=audio0 \
+-device intel-hda \
+-device virtio-net,netdev=nic -netdev user,hostname=windows-11arm64,hostfwd=tcp::22220-:22,id=nic -global driver=cfi.pflash01,property=secure,value=on \
+-drive if=pflash,format=raw,unit=0,file=windows-11arm64/OVMF_CODE.fd,readonly=on \
+-drive if=pflash,format=raw,unit=1,file=windows-11arm64/OVMF_VARS.fd \
+-drive media=cdrom,index=2,file=windows-11arm64/unattended.iso \
+-drive media=cdrom,index=0,file=windows-11arm64/Win11_24H2_EnglishInternational_Arm64.iso \
+-drive media=cdrom,index=1,file=windows-11arm64/virtio-win.iso \
+-device virtio-blk-pci,drive=SystemDisk -drive id=SystemDisk,if=none,format=qcow2,file=windows-11arm64/disk.qcow2
+
+#quickemu
+/usr/bin/qemu-system-aarch64 -name windows-11arm64,process=windows-11arm64 -machine virt,highmem=on,accel=kvm \
+-global kvm-pit.lost_tick_policy=discard -global ICH9-LPC.disable_s3=1 \
+-cpu host -smp cores=4,threads=1,sockets=1 -m 4G \
+-device virtio-balloon -pidfile windows-11arm64/windows-11arm64.pid \
+-rtc base=localtime,clock=host,driftfix=slew \
+-vga none -device virtio-gpu-pci,xres=1280,yres=800 -display sdl,gl=on \
+-device virtio-rng-pci,rng=rng0 -object rng-random,id=rng0,filename=/dev/urandom \
+-device qemu-xhci,id=spicepass -chardev spicevmc,id=usbredirchardev1,name=usbredir \
+-device usb-redir,chardev=usbredirchardev1,id=usbredirdev1 -chardev spicevmc,id=usbredirchardev2,name=usbredir \
+-device usb-redir,chardev=usbredirchardev2,id=usbredirdev2 -chardev spicevmc,id=usbredirchardev3,name=usbredir \
+-device usb-redir,chardev=usbredirchardev3,id=usbredirdev3 \
+-device pci-ohci,id=smartpass \
+-device usb-ccid -chardev spicevmc,id=ccid,name=smartcard \
+-device ccid-card-passthru,chardev=ccid \
+-device usb-ehci,id=input \
+-device usb-kbd,bus=input.0 -k en-us \
+-device usb-tablet,bus=input.0 \
+-audiodev pa,id=audio0 -device intel-hda -device hda-micro,audiodev=audio0 \
+-device virtio-net,netdev=nic -netdev user,hostname=windows-11arm64,hostfwd=tcp::22220-:22,id=nic -global driver=cfi.pflash01,property=secure,value=on \
+-drive if=pflash,format=raw,unit=0,file=windows-11arm64/OVMF_CODE.fd,readonly=on \
+-drive if=pflash,format=raw,unit=1,file=windows-11arm64/OVMF_VARS.fd \
+-drive media=cdrom,index=2,file=windows-11arm64/unattended.iso \
+-drive media=cdrom,index=0,file=windows-11arm64/Win11_24H2_EnglishInternational_Arm64.iso \
+-drive media=cdrom,index=1,file=windows-11arm64/virtio-win.iso \
+-device virtio-blk-pci,drive=SystemDisk \
+-drive id=SystemDisk,if=none,format=qcow2,file=windows-11arm64/disk.qcow2 \
+-monitor unix:windows-11arm64/windows-11arm64-monitor.socket,server,nowait \
+-serial unix:windows-11arm64/windows-11arm64-serial.socket,server,nowait
+
+#working command:
+qemu-system-aarch64 -M virt -cpu host -accel kvm -m 4G -smp 4 -device virtio-gpu-pci -bios \
+/usr/share/qemu-efi-aarch64/QEMU_EFI.fd -device qemu-xhci -device usb-kbd -device usb-tablet -drive file=win11.qcow2,if=virtio \
+-nic user,model=virtio-net-pci,mac=00:11:22:33:44:55

@@ -1,0 +1,67 @@
+#!/bin/bash
+
+#bvm configuration file
+#This is a script, but nothing useful happens when you run it.
+#BVM sources the script on each run in order to pick up your settings in an easier format.
+
+#Do not change this file if it is in the bvm/resources folder. Leave that one alone.
+#Make changes to the copy of the file in your VM directory. Example: ~/win11/bvm-config
+#This file will be copied to the VM folder when you run bvm new-vm 
+
+#Username and password to set when creating a new user, and when connecting via remote desktop
+vm_username=Win11ARM
+vm_password=win11arm
+
+#Select language. List all languages using bvm list-languages
+download_language="English (United States)"
+
+#If you have mutliple VMs, give each one a unique value.
+rdp_port=3389
+#Make sure this value does not conflict with other network services shown when running netstat -tuln
+
+#Change this to false if you don't want Microsoft bloatware, ads, and Windows Defender removed
+debloat=true
+#Be aware that other registry changes (like dark mode, disabling hibernation, and RDP) will still be run on the VM with this set to false.
+#Inspect the firstlogin.ps1 and autounattend.xml files for more details.
+
+#Force RAM size (It's recommended to leave commented for BVM to choose a sensible value)
+#vm_mem=4
+#If your device has 4GB or less RAM, it is strongly recommended you set up ZRAM.
+#An excellent ZRAM implementation can be found on Pi-Apps called 'More RAM'
+#You can install it directly with: wget -qO- https://raw.githubusercontent.com/Botspot/pi-apps/master/apps/More%20RAM/install | bash
+
+#Uncomment this to change size of the installation drive image. Default 40
+#disksize=40
+#You can reduce this somewhat if you encounter the "Insufficient free disk space" error. Not sure what the lower limit is.
+
+#Uncomment to enable additional output to help troubleshoot issues.
+#bvm_debug=true
+#Even more debugging: (displays every command run by the script)
+#set -x
+
+#USB forwarding: uncommant this line and replace vendorid and productid with what you find when running lsusb
+#do note this is not completely functional yet - the script needs to chown the USB device before QEMU can access it.
+#usb_forwarding_flags=(-usb -device usb-host,vendorid=0x'05dc',productid=0x'a720',driver=usb-host)
+
+#Uncomment this to turn off animations (useful for X11 mainly)
+#reduce_graphics=true
+
+#Uncomment to disable BVM updates. Useful if you have changed the script and do not want your changes overwritten
+#disable_updates=true
+#Most users should not have to be modifying bvm script. It is preferable to keep all changes in this config file.
+#If your situation needs more flexibility than what the config file offers, contact me and I can try to implement something that helps everyone.
+
+#Change the flags passed to the FreeRDP viewer
+#add_freerdp_flags=(-drives -home-drive -wallpaper)
+#See all options by running wlfreerdp -help or xfreerdp -help
+
+#Network settings: leave this alone unless you know what you are doing and need to change it.
+#For security, the VM's RDP port is only accessible on localhost, not on the local network. To change that, replace 127.0.0.1 with 0.0.0.0
+#Do not replace 3389 here with your value of rdp_port set above. This 3389 is the port on the Windows side that is redirected to rdp_port, and will always be 3389.
+#Comment this line out to prevent the VM from connecting to the Internet. (untested)
+network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
+
+#To add flags to QEMU, nothing is stopping you from hijacking network_flags or usb_forwarding_flags with whatever QEMU flags you want.
+
+#Thanks for reading! -Botspot
+#I am always here if you need anything. Consider donating. https://github.com/sponsors/botspot
