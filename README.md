@@ -1,14 +1,14 @@
 # BVM
 Windows 11 Virtual Machine on ARM Linux
 ![20250221_02h33m45s_grim](https://github.com/user-attachments/assets/e310dd9b-e444-4d6c-9dac-caa76f3aaf26)  
-It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issues) good and bad results. Everything is a learning opportunity. Do not assume I am already aware of an issue, unless you can find it in [Issues](https://github.com/Botspot/bvm/issues) already.  
+It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issues) good and bad results. Everything is a learning opportunity. Do not assume I am already aware of an issue, unless you can find it in [Issues](https://github.com/Botspot/bvm/issues), in which case please respond with something like "me too".  
 Get started:
 ```
 git clone https://github.com/Botspot/bvm
 ./bvm/bvm help
 ```
 ### Usage instructions
-Read the help message and follow the instructions. BVM has simplified the VM-creation process to a sequence of steps. Between each step you have the opportunity to change what is happening, retry a step, or do whatever else you want. Unlike some of my other scripts that have a slight "don't worry about how it works" philosophy, BVM encourages you to hack around with it and build on top.
+Read the help message and follow the instructions. BVM has simplified the VM-creation process from an elaborate list of manual instructions, to a sequence of completely automated steps. Between each step you have the opportunity to change what is happening, modify the config file, retry a step, or do whatever else you want. Unlike some of my other scripts that have a slight "don't try to understand how it all works" philosophy, BVM encourages you to hack around with it and build on top.
 
 To get a fresh VM up and running, use a sequence like this:  
 - `./bvm/bvm new-vm ~/win11`  
@@ -18,7 +18,7 @@ To get a fresh VM up and running, use a sequence like this:
 - `./bvm/bvm prepare ~/win11`  
     This bundles everything up to get ready for first boot.  
 - `./bvm/bvm firstboot ~/win11`  
-    If the Windows install is interrupted, just run this step again. Be aware: when Windows finishes installing, the VM will shutdown. All .iso files and the unattended folder could be removed here to save space.  
+    If the Windows install is interrupted, just run this step again. Be aware: when Windows finishes installing, the VM will shutdown. All .iso files and the unattended folder could be removed once this step is done.  
 - `./bvm/bvm boot ~/win11`  
     Main command to use the VM. This works, but is a little laggy and lacks crucial features. It is recommended to boot the VM headless and then connect to it via RDP:  
 - `./bvm/bvm boot-nodisplay ~/win11`  
