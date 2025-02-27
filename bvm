@@ -523,7 +523,7 @@ update_check() { #check for updates and reload the script if necessary
     echo "Auto-updating BVM for the latest features and improvements..."
     (cd "$DIRECTORY"
     git restore . #abandon changes to tracked files (otherwise users who modified this script are left behind)
-    git pull | cat #piping through cat makes git noninteractive
+    git -c color.ui=always pull | cat #piping through cat makes git noninteractive
     return "${PIPESTATUS[0]}")
     
     if [ $? == 0 ];then
