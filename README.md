@@ -5,7 +5,7 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 ### Get started:
 ```
 git clone https://github.com/Botspot/bvm
-./bvm/bvm help
+bvm/bvm help
 ```
 
 <details>
@@ -26,20 +26,20 @@ BVM also makes some icon symlinks in `~/.local/share/icons/hicolor/scalable/apps
 Read the help message and follow the instructions. BVM has simplified the VM-creation process from an elaborate list of manual instructions, to a sequence of completely automated steps. Between each step you have the opportunity to change what is happening, modify the config file, retry a step, or do whatever else you want. Unlike some of my other scripts that have a slight "don't try to understand how it all works" philosophy, BVM encourages you to learn it, hack it, and add to it.
 
 To get a fresh VM up and running, use a sequence like this:  
-- `./bvm/bvm new-vm ~/win11`  
+- `bvm/bvm new-vm ~/win11`  
     This makes a config file: `~/win11/bvm-config` <--- Please read the config file!  
-- `./bvm/bvm download ~/win11`  
+- `bvm/bvm download ~/win11`  
     This downloads Windows and necessary drivers.  
-- `./bvm/bvm prepare ~/win11`  
+- `bvm/bvm prepare ~/win11`  
     This bundles everything up to get ready for first boot.  
-- `./bvm/bvm firstboot ~/win11`  
+- `bvm/bvm firstboot ~/win11`  
     If the Windows install is interrupted, just run this step again. Be aware: when Windows finishes installing, the VM will shutdown. All .iso files and the unattended folder could be removed once this step is done.  
-- `./bvm/bvm boot ~/win11`  
+- `bvm/bvm boot ~/win11`  
     Main command to use the VM. While this works, it's a little laggy and lacks crucial features. It is recommended to boot the VM headless and then connect to it via RDP. (keep reading)  
 - Boot Windows headless, without a screen:  
-    `./bvm/bvm boot-nodisplay ~/win11`  
+    `bvm/bvm boot-nodisplay ~/win11`  
 - Then in a second terminal, connect to the RDP service:  
-    `./bvm/bvm connect ~/win11`  
+    `bvm/bvm connect ~/win11`  
     The connect mode has:
   - Better audio.
   - Clipboard synchronization.
@@ -49,7 +49,7 @@ To get a fresh VM up and running, use a sequence like this:
   - Disconnecting for 60 seconds will log out, allowing Windows to stay running but use negligable CPU and RAM. When you need to use Windows again, connecting will log back in. Splendid!  
     Note: if it freezes on login, try connecting with Remmina instead of FreeRDP with the `connect-remmina` mode.
 - Mount the Windows main hard drive with:  
-    `./bvm/bvm mount ~/win11`  
+    `bvm/bvm mount ~/win11`  
     Direct file access can be useful for troubleshooting. Be aware: the VM needs to be shut down properly to mount in read/write mode.
 
 Full list of modes: `new-vm`, `download`, `prepare`, `firstboot`, `boot`, `connect`, `mount`, `help`, `list-languages`, `boot-nodisplay`, `boot-ramfb`, `boot-gtk`, `connect-freerdp`, `connect-remmina`, `gui`  
@@ -58,7 +58,7 @@ BVM has a graphical user interface.
 ![image](https://github.com/user-attachments/assets/6b4bef4f-b18a-44f0-aba3-1d9ea2f0f34a)  
 Run the GUI with:
 ```
-./bvm/bvm gui
+bvm/bvm gui
 ```
 Right now it is quite basic, but functional. It might stay that way, might not. Much of BVM's future depends on how much of an impact it makes in the community. If nobody uses it, then I will leave it to rot as with past projects that I thought were cool but nobody else did.  
 
