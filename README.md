@@ -36,7 +36,7 @@ To get a fresh VM up and running, use a sequence like this:
     If the Windows install is interrupted, just run this step again. Be aware: when Windows finishes installing, the VM will shutdown. All .iso files and the unattended folder could be removed once this step is done.  
 - `./bvm/bvm boot ~/win11`  
     Main command to use the VM. While this works, it's a little laggy and lacks crucial features. It is recommended to boot the VM headless and then connect to it via RDP. (keep reading)  
-- Boot Windows headless, without a screen:
+- Boot Windows headless, without a screen:  
     `./bvm/bvm boot-nodisplay ~/win11`  
 - Then in a second terminal, connect to the RDP service:  
     `./bvm/bvm connect ~/win11`  
@@ -50,7 +50,7 @@ To get a fresh VM up and running, use a sequence like this:
     Note: if it freezes on login, try connecting with Remmina insread of FreeRDP with the `connect-remmina` mode.
 - Mount the Windows main hard drive with:  
     `./bvm/bvm mount ~/win11`  
-    This can be useful for troubleshooting or deleting Windows Defender. Be aware: the VM needs to be shut down properly to mount in read/write mode.
+    Direct file access can be useful for troubleshooting. Be aware: the VM needs to be shut down properly to mount in read/write mode.
 
 Full list of modes: `new-vm`, `download`, `prepare`, `firstboot`, `boot`, `connect`, `mount`, `help`, `list-languages`, `boot-nodisplay`, `boot-ramfb`, `boot-gtk`, `connect-freerdp`, `connect-remmina`, `gui`  
 What is that last one there? Oh I almost forgot! ;-)  
@@ -80,17 +80,17 @@ Right now it is quite basic, but functional. It might stay that way, might not. 
 
 ### Ask me anything!
 - Who are you?  
-    I'm [Botspot.](https://github.com/Botspot) College student. Bash scripter. Raspberry Pi user and founder of [Pi-Apps](https://github.com/Botspot/pi-apps) and [WoR-Flasher](https://github.com/Botspot/wor-flasher). If you met me in real life you would just see an average kid.  
+    I'm [Botspot.](https://github.com/Botspot), a college student, bash scripter, Raspberry Pi user, and founder of [Pi-Apps](https://github.com/Botspot/pi-apps) and [WoR-Flasher](https://github.com/Botspot/wor-flasher). If you met me in real life you would just see an average kid.  
 - Is this legal?  
     Yes. By default the VM does use a license key, but it is a free license for VMs, offered by Microsoft for this purpose.
 - Is this unique?  
     Yes and no. Other projects share some similar ideas. The [QuickEMU project](https://github.com/quickemu-project/quickemu) probably comes closest, but it is only for x86 PCs and not ARM-compatible. There is also the [UTM project](https://getutm.app/), which I am not very familiar with, but apparently has ARM support. The most unique thing here, in my opinion, is the extent to which it is automated. I could string the main modes back to back, leave it running, and in a couple hours there would be a fully-installed VM ready to use.  
-    Usually you would need to be watching over it to press a key in a 5-second time window to boot the installer, and navigate through the installation steps, but BVM bypasses the keypress by patching the Windows installer ISO in a very unconventional way (see the `patch_iso_noprompt` function), and bypasses the installation steps using an autounattend.xml file. To my knowledge, no other tool is capable of a completely automated Windows install, _and debloat_, with zero user interaction.  
+    Usually you would need to be watching over it to press a key in a 5-second time window to boot the installer, and navigate through the installation steps, but BVM bypasses the keypress by patching the Windows installer ISO in a very unconventional way (see the `patch_iso_noprompt` function), and bypasses the installation steps using an autounattend.xml file. To my knowledge, no other tool is capable of a completely automated Windows install, and debloat, with zero user interaction.  
 - Why did you make this?  
     First, it will benefit me personally quite a bit over the long term. As a die-hard Raspberry Pi user without easy access to another computer, with BVM I now have an alternative to Wine when I need to run a Windows-only program, such as Lego Mindstorms or Microsoft Office. ARM Windows comes built-in with a x86 emulator, so any program that does not require GPU features should work.  
     But also, I genuinely want to help you all out. The ARM desktop community is special, but small. The more people we can keep in this community, the better it can become for everyone. Some will oppose the promotion of a Microsoft product and say it defeats the point of FOSS. But for most folks, it's either Linux with compromise, or no Linux at all. Therefore I see tremendous value in all projects that lower the barrier to entry for a good Linux desktop experience.
 - What was the timeline for making this?  
-    I have wanted to do a KVM Windows VM on a Pi ever since I was a high-schooler with a Pi 3, so 5+ years. The task is not trivial, and no tutorials have existed until quite recently. Occasionally someone would get it working, but leave behind very incomplete instructions and not respond to questions. While I gave it a try every year or so, with partial success, I never "cracked" the code completely until this month (February 2025) when I made up my mind to figure it out. This has been a multi-week effort of near total dedication, with a number of all-night coding sessions. It became an obsession.
+    I have wanted to do a KVM Windows VM on a Pi ever since I was a high-schooler with a Pi 3, so 5+ years. The task is not trivial, and no tutorials have existed until quite recently. Occasionally someone would get it working, but leave behind very incomplete instructions and not respond to questions. While I gave it a try every year or so, with partial success, I never "cracked" the code completely until this month (February 2025) when I made up my mind to figure it out. This has been a multi-week effort of near total dedication, with a number of all-night coding sessions. It became an obsession.  
     Sidenote: ChatGPT has been a huge life-saver, especially when it came to the obscure Windows automation stuff. Anyone who says LLMs are useless is wrong.
 
-If communication on github is not your thing, [join my discord server!](https://discord.gg/RXSTvaUvuu)
+If communication on github is not your thing, [join my Discord server!](https://discord.gg/RXSTvaUvuu)
