@@ -267,7 +267,7 @@ download_windows_11arm64() { #download latest stable windows 11 ISO language $do
     Then run this action again."
   
   [ -z "$download_language" ] && error "download_windows_11arm64: language must be specified in download_language variable. Get list of available languages by running $DIRECTORY/bvm list-languages"
-  list_download_languages | sed 's/.*://g' | grep -qFx "$download_language" || error "download_windows_11arm64: unrecognized language '$download_language'. Get list of available languages by running $DIRECTORY/bvm list-language"
+  list_download_languages | sed 's/.*://g' | grep -qFx "$download_language" || error "download_windows_11arm64: unrecognized language '$download_language'. Get list of available languages by running $DIRECTORY/bvm list-languages"
   [ -z "$vmdir" ] && error "download_windows_11arm64: download folder for installer.iso must be specified in vmdir variable"
   
   status "Downloading Windows 11 ARM64 (${download_language})"
