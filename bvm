@@ -65,7 +65,7 @@ ${white}BOTSPOT  VIRTUAL  MACHINE  ${black}    ${rpired}     ${black}           
 "Introducing: a really good way to use up storage space!"
 "How many of these captions do I have to write!?" -Botspot
 "Is pure Linux better? Yes. But this helps more people stick around."
-"We’re pleased to announce a more efficient way to run inefficient software."
+"Pleased to announce an even more efficient way to run inefficient software."
 "PROTIP: Try selecting the lines of text above for an easter egg! :)"
 "Mixing Linux and Windows... what could possibly go wrong?"
 "Turns out Raspberry and Windows do mix... forming a very crunchy smoothie."
@@ -99,11 +99,13 @@ get_space_free() { #Input: folder to check. Output: show many bytes can fit befo
   df -B 1 "$1" --output=avail | tail -1 | tr -d ' '
 }
 
-list_download_languages() {
-  #derived from quickemu project
-  echo -e "Arabic\nBrazilian Portuguese\nBulgarian\nChinese (Simplified)\nChinese (Traditional)\nCroatian\nCzech\nDanish\nDutch\nEnglish (United States)\nEnglish International
-Estonian\nFinnish\nFrench\nFrench Canadian\nGerman\nGreek\nHebrew\nHungarian\nItalian\nJapanese\nKorean\nLatvian\nLithuanian\nNorwegian\nPolish\nPortuguese\nRomanian\nRussian
-Serbian Latin\nSlovak\nSlovenian\nSpanish\nSpanish (Mexico)\nSwedish\nThai\nTurkish\nUkrainian"
+list_download_languages() { #langcode:language
+  echo -e "ar-sa:Arabic\npt-br:Brazilian Portuguese\nbg-bg:Bulgarian\nzh-cn:Chinese (Simplified)\nzh-tw:Chinese (Traditional)\nhr-hr:Croatian\ncs-cz:Czech
+da-dk:Danish\nnl-nl:Dutch\nen-us:English (United States)\nen-gb:English International\net-ee:Estonian\nfi-fi:Finnish\nfr-fr:French\nfr-ca:French Canadian
+de-de:German\nel-gr:Greek\nhe-il:Hebrew\nhu-hu:Hungarian\nit-it:Italian\nja-jp:Japanese\nko-kr:Korean\nlv-lv:Latvian\nlt-lt:Lithuanian\nnb-no:Norwegian
+pl-pl:Polish\npt-pt:Portuguese\nro-ro:Romanian\nru-ru:Russian\nsr-latn-rs:Serbian Latin\nsk-sk:Slovak\nsl-si:Slovenian\nes-es:Spanish\nes-mx:Spanish (Mexico)
+sv-se:Swedish\nth-th:Thai\ntr-tr:Turkish\nuk-ua:Ukrainian"
+
 }
 
 process_exists() { #return 0 if the $1 PID is running, otherwise 1
@@ -167,6 +169,7 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
 unmount_qcow2() { #unmount what was mounted by the mount_qcow2 function
   #find which /dev/nbd* is used by this mountpoint, before unmounting it
   local nbd_device="/dev/$(lsblk -no MOUNTPOINTS,PKNAME | grep "^/media/$USER/bvm-mount$rdp_port " | awk '{print $2}' | head -n1)"
+  [ "$nbd_device" == /dev/ ] && return 1
   
   umount_retry /media/$USER/bvm-mount$rdp_port
   
@@ -176,6 +179,72 @@ unmount_qcow2() { #unmount what was mounted by the mount_qcow2 function
     errors="$(sudo qemu-nbd --disconnect "$nbd_device" 2>&1)" || error "unmount_qcow2: '$errors'"
   fi
   sudo rmdir /media/$USER/bvm-mount$rdp_port
+}
+
+download_windows_11arm64_22631() { #downloads older W11 version for ARMv8.0 CPUs such as the Raspberry Pi 4 or 3
+  #from https://github.com/mattieb/windows-esd-to-iso/blob/main/windows-esd-to-iso
+  #and from wor-flasher
+  
+  #convert from pretty language name to short-code used by esd releases - example: en-us
+  local WIN_LANG="$(list_download_languages | grep ":${download_language}$" | awk -F: '{print $1}')"
+  [ -z "$WIN_LANG" ] && error "download_windows_11arm64_22631: language must be specified in download_language variable. Get list of available languages by running $DIRECTORY/bvm list-languages"
+  [ -z "$vmdir" ] && error "download_windows_11arm64_22631: download folder for installer.iso must be specified in vmdir variable"
+  
+  status "Downloading Windows 11 ARM64 (${download_language})"
+  
+  echo "  - Getting ESD download URL..."
+  catalog="$(wget -nv -O- "https://worproject.com/dldserv/esd/getcatalog.php?build=22631.2861&arch=ARM64&edition=Professional")"
+  catalog="$(echo "$catalog" | sed 's/></>\n</g' | sed -n '/<Languages>/q;p' | sed -n '/^<LanguageCode>'"${WIN_LANG}"'/,${p;/^<\/File>/q}')"
+  
+  [ -z "$catalog" ] && error "Could not get list of Windows ESD releases. If you ran this step several times recently, the site likely temporarily banned your IP address. Give it time, and check if this site is accessible from your network: https://worproject.com/dldserv/esd/getcatalog.php"
+  
+  rm -rf "$vmdir/esdextract" || error "Failed to remove esdextract folder"
+  mkdir "$vmdir/esdextract" || error "Directory creation failed"
+  
+  #Get download link, size, and SHA1 hash for ESD
+  local URL="$(echo "$catalog" | grep '<FilePath>' -m 1 | sed 's/<FilePath>//g' | sed 's/<\/FilePath>//g')"
+  local SIZE="$(echo "$catalog" | grep '<Size>' -m 1 | sed 's/<Size>//g' | sed 's/<\/Size>//g')"
+  local SHA1="$(echo "$catalog" | grep '<Sha1>' -m 1 | sed 's/<Sha1>//g' | sed 's/<\/Sha1>//g')"
+  local SOURCE_FILE="$vmdir/image.esd"
+  
+  if [ -f "$SOURCE_FILE" ] && [ "$SHA1" == "$(echo "  - Checking validity of already downloaded image.esd" 1>&2 ; sha1sum "$SOURCE_FILE" | awk '{print $1}')" ];then
+    echo "  - Not downloading $SOURCE_FILE - file exists"
+  else
+    echo "  - Downloading Windows ESD image"
+    wget -nv --show-progress "$URL" -O "$SOURCE_FILE" || error "Failed to download ESD image"
+    echo "  - Verifying download... "
+    local LOCAL_SHA1="$(sha1sum "$SOURCE_FILE" | awk '{print $1}')"
+    if [ "$SHA1" != "$LOCAL_SHA1" ];then
+      error "\nSuccessfully downloaded ESD image $SOURCE_FILE, but it appears to be corrupted. Please run this script again.\n(Expected SHA1 hash is $SHA1, but downloaded file has SHA1 hash $LOCAL_SHA1"
+    fi
+    echo "Done"
+  fi
+  
+  echo "  - Scanning ESD image for partitions... "
+  #should always be 6, but doubles as a validity check
+  local professional_partition_num="$(wiminfo "$SOURCE_FILE" | grep -xB1 'Name: *Windows 11 Pro' | head -n1 | awk '{print $2}')"
+  [ -z "$professional_partition_num" ] && error "\nCould not find Windows Professional in image.esd"
+  
+  status "Extracting Windows Setup Media to esdextract"
+  wimapply "$SOURCE_FILE" 1 "$vmdir/esdextract" || error "Operation failed"
+  
+  status "Extracting Microsoft Windows PE to boot.wim"
+  wimexport "$SOURCE_FILE" 2 "$vmdir/esdextract/sources/boot.wim" --compress=LZX --chunk-size=32K || error "Operation failed"
+  
+  status "Extracting Microsoft Windows Setup to boot.wim"
+  wimexport "$SOURCE_FILE" 3 "$vmdir/esdextract/sources/boot.wim" --compress=LZX --chunk-size=32K --boot || error "Operation failed"
+  
+  status "Extracting Windows 11 Pro to install.wim" #compression is usually LZMS with 128k chunk size, but this was taking over an hour.
+  wimexport "$SOURCE_FILE" $professional_partition_num "$vmdir/esdextract/sources/install.wim" --compress=none || error "Operation failed"
+  
+  #Make boot noninteractive - do what patch_iso_noprompt does but ahead of time as we are creating the ISO
+  cp -f "$vmdir/esdextract/efi/microsoft/boot/efisys_noprompt.bin" "$vmdir/esdextract/efi/microsoft/boot/efisys.bin" || error "Failed to copy efisys_noprompt.bin"
+  
+  rm -f "$vmdir/installer.iso"
+  status "Making installer.iso disk image..."
+  (cd "$vmdir/esdextract"; genisoimage -o "$vmdir/installer.iso" -iso-level 3 -udf -b efi/microsoft/boot/efisys.bin -no-emul-boot -V "ESD_ISO" -allow-limited-size . 2>&1 | tee >(grep -v " done," 1>&2) | tr '\n' '\r' ; exit "${PIPESTATUS[0]}") || error "Operation failed"
+  
+  rm -rf "$vmdir/esdextract" "$vmdir/image.esd"
 }
 
 download_windows_11arm64() { #download latest stable windows 11 ISO language $download_language to $vmdir
@@ -197,8 +266,8 @@ download_windows_11arm64() { #download latest stable windows 11 ISO language $do
     Make sure the file is named installer.iso
     Then run this action again."
   
-  [ -z "$download_language" ] && error "download_windows_11arm64: language must be specified in download_language variable Available languages:\n$(list_download_languages | tr '\n' '\t' | sed 's/\t/, \t/g')"
-  list_download_languages | grep -qF "$download_language" || error "download_windows_11arm64: unrecognized language '$download_language'. Available languages:\n$(list_download_languages | tr '\n' '\t' | sed 's/\t/, \t/g')"
+  [ -z "$download_language" ] && error "download_windows_11arm64: language must be specified in download_language variable. Get list of available languages by running $DIRECTORY/bvm list-languages"
+  list_download_languages | sed 's/.*://g' | grep -qFx "$download_language" || error "download_windows_11arm64: unrecognized language '$download_language'. Get list of available languages by running $DIRECTORY/bvm list-language"
   [ -z "$vmdir" ] && error "download_windows_11arm64: download folder for installer.iso must be specified in vmdir variable"
   
   status "Downloading Windows 11 ARM64 (${download_language})"
@@ -371,8 +440,8 @@ get_codename() { #get debian/ubuntu codename
 }
 
 install_dependencies() { #try to install everything BVM needs
-  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen"
-  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu"
+  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen wiminfo"
+  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools"
   
   #using freerdp version 2 instead of 3 because it does not freeze on login and has more reliable clipboard sync
   if [ "$XDG_SESSION_TYPE" == wayland ];then
@@ -449,6 +518,7 @@ update_check() { #check for updates and reload the script if necessary
   if [ "$localhash" != "$latesthash" ] && [ ! -z "$latesthash" ] && [ ! -z "$localhash" ];then
     if [ "$disable_updates" == true ];then
       echo "Updates available, but you have auto-updates disabled."
+      return 0
     fi
     echo "Auto-updating BVM for the latest features and improvements..."
     (cd "$DIRECTORY"
@@ -474,6 +544,23 @@ copy_icons() { #install icons to a location where the panel will notice them
     ln -sf "$DIRECTORY/resources/icon.png" ~/.local/share/icons/hicolor/scalable/apps/xfreerdp.png
   fi
   #for wf-panel-pi at least, updating icon caches seems to do no good
+}
+
+find_a76_cores() { #Some rockchip CPUs have A55 and A76 cores, and latest Windows will only support A76. Return 1 if not all cores are the same, list the A76 ones no matter what
+  local cores="$(cat /proc/cpuinfo | grep 'processor\|Features\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
+  
+  local a76_cores="$(echo "$cores" | grep -w fphp | awk '{print $3}')"
+  local non_a76_cores="$(echo "$cores" | grep -vw fphp | awk '{print $3}')"
+  
+  if [ -z "$a76_cores" ] || [ -z "$non_a76_cores" ];then
+    #all the cores are the same
+    echo "$a76_cores"
+    return 0
+  else
+    #list the cores that are A76
+    echo "$a76_cores"
+    return 1
+  fi
 }
 
 DIRECTORY="$(readlink -f "$(dirname "$0")")"
@@ -558,8 +645,12 @@ if ! sudo modprobe kvm ;then
 #check RAM and choose how much to allocate the VM
 elif [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -le $((1*1024*1024)) ];then
   error "Your system needs at least 2 GB of RAM. Be aware that a VM might be able to boot on 1 GB of RAM, but it cannot install Windows with less than 2 GB."
+#check OS architecture: ARM64 userland required
 elif [ "$(od -An -t x1 -j 4 -N 1 "$(readlink -f /sbin/init)")" = ' 01' ];then
   error "OS CPU architecture is 32-bit! BVM only works on ARM 64-bit operating systems."
+#check storage location for ISO is not a FAT partition
+elif [ ! -z "$vmdir" ] && df -T "$vmdir" 2>/dev/null | grep -q 'fat' ;then
+  error "The $DL_DIR directory is on a FAT32/FAT16/vfat partition. This type of partition cannot contain files larger than 4GB, however the Windows image will be larger than that.\nPlease format the drive with an Ext4 partition, or use another drive."
 fi
 
 install_dependencies || exit 1
@@ -599,7 +690,7 @@ To get a fresh VM up and running, use a sequence like this:
     ;;
     
   list-languages)
-    list_download_languages
+    list_download_languages | sed 's/.*://g'
     ;;
     
   gui)
@@ -772,8 +863,19 @@ To get a fresh VM up and running, use a sequence like this:
       error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
     fi
     
-    #vmdir and $download_language must be set for this function
-    download_windows_11arm64 || exit 1
+    #get either latest ISO if CPU supports it, or W11 22631 if CPU is not ARMv8.1+
+    if grep -wq fphp /proc/cpuinfo ;then
+      #ARMv8.1+, get latest windows (Pi5, A76 core)
+      #vmdir and $download_language must be set for this function
+      download_windows_11arm64 || exit 1
+      
+      #Patch the ISO to not require a keypress to boot
+      patch_iso_noprompt "$vmdir/installer.iso" || exit 1
+    else
+      warning "Downloading an older Windows version that is compatible with your device. Later versions of Windows 11 require ARM instructions that your CPU lacks."
+      #get Windows build 22631 for Pi4s and other A53 CPUs
+      download_windows_11arm64_22631 || exit 1
+    fi
     
     status "Downloading virtio drivers"
     wget -nv --show-progress "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso" -O "${vmdir}/virtio-win.iso" || error "Downloading virtio-win.iso failed"
@@ -839,8 +941,6 @@ To get a fresh VM up and running, use a sequence like this:
     
   prepare) #take downloaded files and get everything ready for first boot
     
-    patch_iso_noprompt "$vmdir/installer.iso" || exit 1
-    
     #make drive to pass to installer (virtio arm drivers with unattended stuff and debloating script)
     status -n "Making unattended.iso... "
     #lesson learned: -J -r -allow-lowercase -allow-multidot fixes debloat script names being truncated
@@ -870,7 +970,19 @@ To get a fresh VM up and running, use a sequence like this:
     
   firstboot) #minimal QEMU command-line to get through OS installation from installer.iso to disk.qcow2
     
-    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $(nproc) \
+    #determine if only some CPU cores can be used
+    if a76_cores="$(find_a76_cores)" ;then
+      #function returned 0, so all cores are the same and taskset is not needed
+      num_cores=$(nproc) #give QEMU all cores the CPU has
+      use_taskset=false
+    else
+      #some cores are performance cores, use them
+      warning "CPU detected with 2 types of cores. Trying to only use the performance cores, but this is untested code. PLEASE reach out to Botspot if it works, or if it does not work."
+      num_cores="$(echo "$a76_cores" | wc -l)"
+      use_taskset=true
+    fi
+    
+    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $num_cores \
       -name BVM \
       -pidfile "$vmdir/qemu.pid" \
       -device ramfb -display gtk,grab-on-hover=on,gl=on \
@@ -888,7 +1000,12 @@ To get a fresh VM up and running, use a sequence like this:
     
     status "Windows should install 100% automatically. This will take several hours."
     #run qemu with these flags
-    qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    if [ "$use_taskset" == false ];then
+      qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    else
+      #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
+      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    fi
     status "QEMU closed."
     
     #check disk.qcow2 and remove microsoft defender if debloat enabled
@@ -961,20 +1078,23 @@ To get a fresh VM up and running, use a sequence like this:
       usb_forwarding_flags=(-device usb-host,vendorid=0x'05dc',productid=0x'a720',driver=usb-host)
     done
     
-    #handle network passthrough preferences
-    
-    #To allow multiple VMs and RDP connections, pick a unique port for each one (handled by config file now)
-    #while sudo lsof -nP -i:"${rdp_port}" >/dev/null ;do
-      #start with 3389, but increment if necessary
-    #  rdp_port=$((rdp_port+1))
-    #done
-    #debug "found available port: $rdp_port"
+    #determine if only some CPU cores can be used
+    if a76_cores="$(find_a76_cores)" ;then
+      #function returned 0, so all cores are the same and taskset is not needed
+      num_cores=$(nproc) #give QEMU all cores the CPU has
+      use_taskset=false
+    else
+      #some cores are performance cores, use them
+      warning "CPU detected with 2 types of cores. Trying to only use the performance cores, but this is untested code. PLEASE reach out to Botspot if it works, or if it does not work."
+      num_cores="$(echo "$a76_cores" | wc -l)"
+      use_taskset=true
+    fi
     
     #forward guest's port 3389 to localhost port of our choice (handled by config file now)
     #network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
     
     #all QEMU flags are combined together here
-    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $(nproc) \
+    full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $num_cores \
       -name BVM,process=bvm \
       -pidfile "$vmdir/qemu.pid" \
       -device virtio-balloon \
@@ -994,8 +1114,13 @@ To get a fresh VM up and running, use a sequence like this:
     debug "full_qemu_flags: " "${full_qemu_flags[@]}"
     
     #run qemu with these flags
-    qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
-    
+    if [ "$use_taskset" == false ];then
+      qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    else
+      #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
+      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+    fi
+    status "QEMU closed."
     ;;
   connect*)
     #make sure the qemu process is running
