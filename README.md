@@ -5,15 +5,17 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 
 ### What to expect:
 - A full Windows 11 ARM virtual machine on ARM Linux. Thanks to [KVM](https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine), this uses virtualization instead of emulation, resulting in no significant speed difference compared to installing Windows directly.
+- A first-class setup experience. None of the usual sticking points are present here - everything is automated, even setup and debloating.
 - It uses network passthrough to the Linux network stack, so Ethernet and WiFi all work out of the box.
-- It uses audio passthrough to pipewire/pulseaudio/ALSA, so sound playback (and probably audio input) works out of the box.
-- With the `connect` mode, there is direct file sharing, so any changes to files made in the VM are immediately accessible from the Linux side.
+- It uses audio passthrough to pipewire/pulseaudio/ALSA, so audio playback (and probably microphone input) works out of the box.
+- The VM uses less than 1GB of RAM and minimal CPU when not in use, leaving plenty of resources free for Linux applications.
+- The `connect` mode gives the VM access to files stored on Linux, and any changes are immediately synchronized.
 - It (will soon be) capable of USB passthrough, so any USB device can be made to directly communicate with Windows.
-- Thanks to Microsoft's built-in [Prism emulator](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation), any Windows application should work. Compare that to Wine which is commonly known to fail on anything but old, simple programs.
-- The graphics are snappy and quicker than you would expect, at least with the `connect` mode on Wayland. Youtube and lightweight web games are actually somewhat playable on the Raspberry Pi 5 without overclocking or extra tweaks.
+- Thanks to Microsoft's built-in [Prism emulator](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation), all Windows applications should work. Compare that to Wine, which fails on everything but old, simple programs.
+- The graphics are snappy and quicker than you would expect, at least with the `connect` mode on Wayland. Youtube and lightweight web games are actually somewhat playable on the Raspberry Pi 5 without any overclocking or extra tweaks.
 
 ### What not to expect:
-- A gaming rig. For now there is no graphics acceleration, so 3D modelers and WebGL won't work. _That could change_ once somebody figures out virtualized graphics that talk to Vulkan. (see "Other Notes" below)
+- A gaming rig. For now there is no graphics acceleration, so 3D features and WebGL won't work. _That could change_ once somebody figures out virtualized graphics that talk to Vulkan. (see "Other Notes" below)
 
 ### Get started:
 ```
