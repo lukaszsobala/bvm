@@ -28,7 +28,7 @@ bvm/bvm help
 
 BVM will installl some dependencies. At the time of writing these are:
 ```
-git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu
+git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools
 ```
 If you are on Arch or some other non-standard OS, you will need to install these manually. Hey Arch users: If you want to help out, consider changing the `install_dependencies` function in the `bvm` script to install dependencies, then send it to me in a Pull Request or something. I would love to support Arch but I don't use Arch.  
 If Debian Bookworm is detected, BVM will set up the `bookworm-backports` APT repository in order to upgrade QEMU from 7.2 to 9.2. Version 7.2 does work, but it is missing pipewire audio output support, and besides, we all know newer is always better anyway! If you have a good reason to not want bookworm-backports, please open an issue, explain why, and I may be willing to change this behavior.  
