@@ -11,7 +11,7 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 - The VM uses less than 1GB of RAM and minimal CPU when not in use, leaving plenty of resources free for Linux applications.
 - The `connect` mode gives the VM access to files stored on Linux, and any changes are immediately synchronized.
 - It (will soon be) capable of USB passthrough, so any USB device can be made to directly communicate with Windows.
-- Thanks to Microsoft's built-in [Prism emulator](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation), all Windows applications should work, including x86 and x64. Compare that to Wine, which fails on everything but old, simple programs.
+- Thanks to Microsoft's built-in [Prism emulator](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation), all Windows applications should work, including x86 and x64. Compare that to [Wine](https://pi-apps.io/install-app/install-wine-x64-on-raspberry-pi/), which fails on everything but old, simple programs.
 - The graphics are snappy and quicker than you would expect, at least with the `connect` mode on Wayland on a Pi 5. Youtube and lightweight web games are actually somewhat playable without any overclocking or extra tweaks.
 
 ### What not to expect:
@@ -80,13 +80,14 @@ Right now it is quite basic, but functional. It might stay that way, it might no
 ### Tips:
 - Use an ARM 64-bit Linux OS with the `kvm` kernel module enabled. This is a hard requirement.
 - Use Wayland. This is not a hard requirement, but it makes a big difference.
-- Use ZRAM. This is a must if you have a 1GB or 2GB Pi model. [Instructions here.](https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi/)
+- Use ZRAM to avoid running out of RAM as easily. This is basically a hard requirement if you have a 1GB or 2GB Pi model, but strongly recommended everywhere. [Instructions here.](https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi/)
 - Use Debian Bookworm or a new-ish Ubuntu image. Debian Bullseye may or may not work. If you try it, please let me know how it went. Maybe it works fine.
 - Your VM can be a folder anywhere, so it could be on an external SSD drive, or even network storage if you wanted. If you encounter issues with sparse preallocation, let me know and I can add a fallback case to do full preallocation.
+- If you are using the `boot-nodisplay` with `connect` modes, the VM could boot every time you log in to Linux. [Use Autostar for this.](https://github.com/Botspot/autostar)
 - Encounter an issue? [Open an issue.](https://github.com/Botspot/bvm/issues) Deal? Deal. :)
 
 ### Other notes:
-- ~~It seems to not be working on Raspberry Pi 4.~~ Now it should work after [this commit](https://github.com/Botspot/bvm/commit/d0b0a1ff228bbebfc2250b97255048032f3df3c7). Now on devices without A76 CPU cores, Windows 11 version 22631.2861 will be downloaded instead of the most recent stable version. This ought to resolve things for the Pi 4 and likely the Pi 3.
+- ~~It seems to not be working on Raspberry Pi 4.~~ Now it should work after [this commit](https://github.com/Botspot/bvm/commit/d0b0a1ff228bbebfc2250b97255048032f3df3c7). Now on devices without A76 CPU cores, Windows 11 version 22631.2861 will be downloaded instead of the most recent public release. This ought to resolve things for the Pi 4 and many other SBCs.
 - If you have past experience with QEMU, I would like to ask for your ongoing help to help build out more features. Surely somebody will want to do serial passthrough, bluetooth passthrough, or something really specific that I will have no idea how to implement.
 - GPU driver: Full 2D/3D acceleration may be possible. First of all if you are Jeff Geerling and have a secondary GPU connected to your Raspberry Pi, in theory Windows could talk to it using GPU passthrough over PCIe. Maybe.  
     For everyone else, it may be possible using this unfinished series of PRs spanning multiple projects: https://github.com/virtio-win/kvm-guest-drivers-windows/pull/943 Also see https://wiki.archlinux.org/title/QEMU/Guest_graphics_acceleration#Virgil3d_virtio-gpu_paravirtualized_device_driver and this other route which may be more mature: https://github.com/tenclass/mvisor-win-vgpu-driver  
