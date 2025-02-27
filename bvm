@@ -763,13 +763,14 @@ To get a fresh VM up and running, use a sequence like this:
     #for GUI: track which step was completed
     echo 1 > "$vmdir/gui-steps-complete"
     
-    #ensure there is 40G of free space to download everything (user can ignore this error except on GUI)
-    if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
-      error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the disk size in the config file to get around this error."
-    fi
-    
+    status_green "You should now be ready for the next step: $0 download $vmdir"
     ;;
   download) #get everything downloaded, and leave it in a state where user can make changes easily
+    
+    #ensure there is 40G of free space to download everything (user can ignore this error except on GUI, where they have to edit the config to work around it)
+    if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
+      error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
+    fi
     
     #vmdir and $download_language must be set for this function
     download_windows_11arm64 || exit 1
