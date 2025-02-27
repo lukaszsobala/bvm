@@ -80,6 +80,7 @@ Right now it is quite basic, but functional. It might stay that way, might not. 
 ### Tips:
 - Use an ARM 64-bit Linux OS with the `kvm` kernel module enabled. This is a hard requirement.
 - Use Wayland. This is not a hard requirement, but it makes a big difference.
+- Use ZRAM. This is a must if you have a 1GB or 2GB Pi model. [Instructions here.](https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi/)
 - Use Debian Bookworm or a new-ish Ubuntu image. Debian Bullseye may or may not work. If you try it, please let me know how it went. Maybe it works fine.
 - Your VM can be a folder anywhere, so it could be on an external SSD drive, or even network storage if you wanted. If you encounter issues with sparse preallocation, let me know and I can add a fallback case to do full preallocation.
 - Encounter an issue? [Open an issue.](https://github.com/Botspot/bvm/issues) Deal? Deal. :)
