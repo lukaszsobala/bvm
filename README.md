@@ -47,7 +47,7 @@ To get a fresh VM up and running, use a sequence like this:
   - Dynamic screen resizing.
   - Usually a higher frame rate.
   - Disconnecting for 60 seconds will log out, allowing Windows to stay running but use negligable CPU and RAM. When you need to use Windows again, connecting will log back in. Splendid!  
-    Note: if it freezes on login, try connecting with Remmina insread of FreeRDP with the `connect-remmina` mode.
+    Note: if it freezes on login, try connecting with Remmina instead of FreeRDP with the `connect-remmina` mode.
 - Mount the Windows main hard drive with:  
     `./bvm/bvm mount ~/win11`  
     Direct file access can be useful for troubleshooting. Be aware: the VM needs to be shut down properly to mount in read/write mode.
