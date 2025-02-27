@@ -60,7 +60,7 @@ To get a fresh VM up and running, use a sequence like this:
   - Clipboard synchronization.
   - File sharing. (Your home folder and any external drives are accessible from This PC)
   - Dynamic screen resizing.
-  - Usually a higher frame rate.
+  - Higher performance graphics.
   - Disconnecting for 60 seconds will log out, allowing Windows to stay running but use negligable CPU and RAM. When you need to use Windows again, connecting will log back in. Splendid!  
     Note: if it freezes on login, try connecting with Remmina instead of FreeRDP with the `connect-remmina` mode.
 - Mount the Windows main hard drive with:  
@@ -68,14 +68,13 @@ To get a fresh VM up and running, use a sequence like this:
     Direct file access can be useful for troubleshooting. Be aware: the VM needs to be shut down properly to mount in read/write mode.
 
 Full list of modes: `new-vm`, `download`, `prepare`, `firstboot`, `boot`, `connect`, `mount`, `help`, `list-languages`, `boot-nodisplay`, `boot-ramfb`, `boot-gtk`, `connect-freerdp`, `connect-remmina`, `gui`  
-What is that last one there? Oh I almost forgot! ;-)  
-BVM has a graphical user interface.  
+That last one there deserves a mention. BVM has a graphical user interface.  
 ![image](https://github.com/user-attachments/assets/6b4bef4f-b18a-44f0-aba3-1d9ea2f0f34a)  
-Run the GUI with:
+Run the GUI:
 ```
 bvm/bvm gui
 ```
-Right now it is quite basic, but functional. It might stay that way, it might not. Much of BVM's future depends on how much of an impact it makes in the community. If nobody uses it, then it will be left to rot, just as has happned with past projects that I thought were cool but nobody else did.  
+Right now it is quite simplistic, but functional. It might stay that way, it might not. Much of BVM's future depends on how much of an impact it makes in the community. If nobody uses it, then it will be left to rot, just as has happned with past projects that I thought were cool but nobody else did.  
 
 ### Tips:
 - Use an ARM 64-bit Linux OS with the `kvm` kernel module enabled. This is a hard requirement.
@@ -83,7 +82,7 @@ Right now it is quite basic, but functional. It might stay that way, it might no
 - Use ZRAM to avoid running out of RAM as easily. This is basically a hard requirement if you have a 1GB or 2GB Pi model, but strongly recommended everywhere. [Instructions here.](https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi/)
 - Use Debian Bookworm or a new-ish Ubuntu image. Debian Bullseye may or may not work. If you try it, please let me know how it went. Maybe it works fine.
 - Your VM can be a folder anywhere, so it could be on an external SSD drive, or even network storage if you wanted. If you encounter issues with sparse preallocation, let me know and I can add a fallback case to do full preallocation.
-- If you are using the `boot-nodisplay` with `connect` modes, the VM could boot every time you log in to Linux. [Use Autostar for this.](https://github.com/Botspot/autostar)
+- If you are using the `boot-nodisplay` with `connect` modes, the VM could boot in the background every time you log in to Linux. [Use Autostar for this.](https://github.com/Botspot/autostar)
 - Encounter an issue? [Open an issue.](https://github.com/Botspot/bvm/issues) Deal? Deal. :)
 
 ### Other notes:
