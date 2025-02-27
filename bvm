@@ -1039,6 +1039,8 @@ To get a fresh VM up and running, use a sequence like this:
     
   boot*) #complex QEMU command-line to boot OS for everyday use
     
+    [ "$mode" == boot ] && warning "Using the plain 'boot' mode is missing features and the screen cannot be resized. To fix this, use the boot-nodisplay mode and connect mode at the same time. See $0 help for more info. To hide this warning, replace boot with boot-gtk."
+    
     #choose display mode (ramfb, gtk, none)
     case "$mode" in
       boot-nodisplay)
