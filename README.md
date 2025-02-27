@@ -85,7 +85,7 @@ Right now it is quite basic, but functional. It might stay that way, might not. 
 - Encounter an issue? [Open an issue.](https://github.com/Botspot/bvm/issues) Deal? Deal. :)
 
 ### Other notes:
-- It seems to not be working on Raspberry Pi 4. Not completely sure why. If your QEMU gets stuck on the BIOS screen during `firstboot`, let me know what hardware you are using. I think we need an earlier Windows version for anything older than the Pi 5. More research and data points are necessary.
+- ~~It seems to not be working on Raspberry Pi 4.~~ Now it should work after [this commit](https://github.com/Botspot/bvm/commit/d0b0a1ff228bbebfc2250b97255048032f3df3c7). Now on devices without A76 CPU cores, Windows 11 version 22631.2861 will be downloaded instead of the most recent stable version. This ought to resolve things for the Pi 4 and likely the Pi 3.
 - If you have past experience with QEMU, I would like to ask for your ongoing help to help build out more features. Surely somebody will want to do serial passthrough, bluetooth passthrough, or something really specific that I will have no idea how to implement.
 - GPU driver: Full 2D/3D acceleration may be possible. First of all if you are Jeff Geerling and have a secondary GPU connected to your Raspberry Pi, in theory Windows could talk to it using GPU passthrough over PCIe. Maybe.  
     For everyone else, it may be possible using this unfinished series of PRs spanning multiple projects: https://github.com/virtio-win/kvm-guest-drivers-windows/pull/943 Also see https://wiki.archlinux.org/title/QEMU/Guest_graphics_acceleration#Virgil3d_virtio-gpu_paravirtualized_device_driver and this other route which may be more mature: https://github.com/tenclass/mvisor-win-vgpu-driver  
