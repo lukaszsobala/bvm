@@ -30,9 +30,9 @@ debloat=true
 #An excellent ZRAM implementation can be found on Pi-Apps called 'More RAM'
 #You can install it directly with: wget -qO- https://raw.githubusercontent.com/Botspot/pi-apps/master/apps/More%20RAM/install | bash
 
-#Uncomment this to change size of the installation drive image. Default 40
+#Uncomment this to change size of the installation drive image in gigabytes. Default 40
 #disksize=40
-#You can reduce this somewhat if you encounter the "Insufficient free disk space" error. Not sure what the lower limit is.
+#You can reduce this somewhat if you encounter the "Insufficient free disk space" error. The lower limit might be somewhere around 15 GB (untested)
 
 #Uncomment to enable additional output to help troubleshoot issues.
 #bvm_debug=true
