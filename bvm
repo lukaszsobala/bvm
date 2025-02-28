@@ -501,6 +501,20 @@ install_dependencies() { #try to install everything BVM needs
     #dependencies needed, but this is not a debian distro
     error "BVM needs these dependencies: $apt_packages\nBVM could not install them for you as your distro is not based on Debian, or at least, the apt command could not be found.\nPlease install the dependencies yourself, then try again."
   fi
+  
+  #make menu launcher for GUI mode
+  if [ ! -f ~/.local/share/applications/bvm.desktop ] || ! grep -qF "$DIRECTORY/bvm" ~/.local/share/applications/bvm.desktop ;then
+    echo "[Desktop Entry]
+Name=Botspot Virtual Machine
+Comment=Simple GUI for running Windows 11 with BVM
+Exec=${DIRECTORY}/bvm gui
+Icon=${DIRECTORY}/resources/graphics/icon.png
+Terminal=false
+StartupWMClass=wlfreerdp
+Type=Application
+Categories=Office
+StartupNotify=true" > ~/.local/share/applications/bvm.desktop
+  fi
 }
 
 qemu_newer_than() { #check if QEMU is newer than specified version, return 0 if yes, return 1 if no
