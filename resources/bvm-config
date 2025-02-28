@@ -30,6 +30,11 @@ debloat=true
 #An excellent ZRAM implementation can be found on Pi-Apps called 'More RAM'
 #You can install it directly with: wget -qO- https://raw.githubusercontent.com/Botspot/pi-apps/master/apps/More%20RAM/install | bash
 
+#Leave this much free RAM for Linux at all times. Default is 100 (MB)
+#free_ram_goal=100
+#Every second, the VM will adjust its RAM allocation to make sure this much is freely available for Linux.
+#If linux tasks begin to use more, the VM will compensate and use less.
+
 #Uncomment this to change size of the installation drive image in gigabytes. Default 40
 #disksize=40
 #You can reduce this somewhat if you encounter the "Insufficient free disk space" error. The lower limit might be somewhere around 15 GB (untested)

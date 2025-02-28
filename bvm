@@ -439,9 +439,20 @@ get_codename() { #get debian/ubuntu codename
   fi
 }
 
+package_installed() { #exit 0 if $1 package is installed, otherwise exit 1
+  #from pi-apps
+  local package="$1"
+  [ -z "$package" ] && error "package_installed(): no package specified!"
+  #find the package listed in /var/lib/dpkg/status
+  #package_info "$package"
+  
+  #directly search /var/lib/dpkg/status
+  grep -x "Package: $package" /var/lib/dpkg/status -A 2 | grep -qxF 'Status: install ok installed'
+}
+
 install_dependencies() { #try to install everything BVM needs
-  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen wiminfo"
-  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools"
+  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen wiminfo socat"
+  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools socat"
   
   #using freerdp version 2 instead of 3 because it does not freeze on login and has more reliable clipboard sync
   if [ "$XDG_SESSION_TYPE" == wayland ];then
@@ -487,7 +498,15 @@ install_dependencies() { #try to install everything BVM needs
   if [ "$installneeded" == 1 ] && command -v apt >/dev/null;then
     status "Installing dependencies, please wait..."
     #don't change the flags here in this apt command without updating the apt-detecting code on the pi-apps install script for BVM
-    sudo apt install -y $apt_packages || error "APT failed to install required dependencies"
+    IFS=' '
+    will_install=''
+    for package in $apt_packages ;do
+      if ! package_installed "$package" ;then
+        will_install+=" $package"
+      fi
+    done
+    
+    sudo apt install -y $will_install || error "APT failed to install required dependencies"
     
     #upgrade qemu to version from bookworm-backports
     if [ "$(get_codename)" == bookworm ];then
@@ -634,12 +653,24 @@ fi
 [ -z "$download_language" ] && download_language="English (United States)"
 [ -z "$debloat" ] && debloat=true
 [ -z "$disksize" ] && disksize=40
+[ -z "$free_ram_goal" ] && free_ram_goal=100
 if [ -z "$vm_mem" ];then
   #choose RAM to allocate to VM - 1GB less than total RAM
   vm_mem="$(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024/1024))"
-  #edge case for 2GB Pies: allocate 2GB and hope for the best (2GB is the minimum it seems)
-  [ "$vm_mem" == 1 ] && vm_mem=2
-  [ "$mode" == firstboot ] && [ "$vm_mem" -gt 4 ] && vm_mem=4 #more than 4GB has no benefit for firstinstall
+  #Force 2GB on <=2GB devices
+  [ "$vm_mem" -le 1 ] && vm_mem=2
+  #Take off 1GB on >=5GB devices
+  [ "$vm_mem" -ge 4 ] && vm_mem=$((vm_mem-1))
+  #so for boot mode, RAM allocation works out like this:
+  #Pi     VM
+  #1GB -> 2GB (likely fails)
+  #2GB -> 2GB
+  #4GB -> 3GB
+  #8GB -> 6GB
+  #16GB -> 14GB
+  
+  #more than 4GB has no benefit for firstinstall
+  [ "$mode" == firstboot ] && [ "$vm_mem" -gt 4 ] && vm_mem=4
 fi
 
 debug "DIRECTORY: $DIRECTORY
@@ -647,6 +678,7 @@ mode: $mode
 vmdir: $vmdir
 vm_username: $vm_username
 vm_password: $vm_password
+vm_mem: $vm_mem
 rdp_port: $rdp_port
 download_language: $download_language"
 
@@ -1117,7 +1149,7 @@ To get a fresh VM up and running, use a sequence like this:
     
     #forward guest's port 3389 to localhost port of our choice (handled by config file now)
     #network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
-    
+    rm -f "$vmdir/qemu.pid"
     #all QEMU flags are combined together here
     full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $num_cores \
       -name BVM,process=bvm \
@@ -1128,6 +1160,7 @@ To get a fresh VM up and running, use a sequence like this:
       -device qemu-xhci \
       -device usb-kbd \
       -device usb-tablet \
+      -monitor unix:"$vmdir/qemu.sock",server,nowait \
       "${usb_forwarding_flags[@]}" \
       "${audio_flags[@]}" \
       -rtc base=localtime,clock=host,driftfix=none \
@@ -1138,14 +1171,43 @@ To get a fresh VM up and running, use a sequence like this:
     
     debug "full_qemu_flags: " "${full_qemu_flags[@]}"
     
+    #always try to pick optimal VM RAM limit by sending repeated balloon requests
+    total_ram=$( grep MemTotal /proc/meminfo | awk '{print int($2/1024)}')
+    
+    #try to keep free_ram_goal MB free RAM on Linux at all times by setting the balloon size of the VM
+    #Windows will eat as much RAM as possible for caches, so it can be reallocated as needed.
+    #This "balloon_popper" process is what's needed to make the virtio-balloon driver actually do something.
+    while true;do
+      sleep 1
+      qemu_pid="$(cat "$vmdir/qemu.pid")"
+      [ -z "$qemu_pid" ] && continue
+      
+      free_ram=$(grep MemFree /proc/meminfo | awk '{print int($2/1024)}')
+      qemu_used_ram=$(grep VmRSS /proc/$qemu_pid/status | awk '{print $2/1024}' | sed 's/\..*//g')
+      other_tasks_ram=$((total_ram - (qemu_used_ram + free_ram)))
+      #echo "other taks use $other_tasks_ram"
+      balloon_size=$((total_ram - other_tasks_ram - free_ram_goal))
+      #echo "qemu using $qemu_used_ram, free $free_ram, balloon_size: $balloon_size"
+      
+      echo "balloon $balloon_size" | socat - UNIX-CONNECT:"$vmdir/qemu.sock" &>/dev/null
+    done &
+    balloon_popper=$!
+    
     #run qemu with these flags
     if [ "$use_taskset" == false ];then
-      qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+      qemu-system-aarch64 "${full_qemu_flags[@]}" 
     else
       #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
-      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}"
     fi
-    status "QEMU closed."
+    qemu_exit_code=$?
+    kill $balloon_popper
+    
+    if [ $qemu_exit_code == 0 ];then
+      status "QEMU closed."
+    else
+      error "QEMU did not exit successfully."
+    fi
     ;;
   connect*)
     #make sure the qemu process is running
