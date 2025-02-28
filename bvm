@@ -603,6 +603,8 @@ IFS=$'\n'
 
 #get configuration settings from bvm-config file
 if [ ! -z "$vmdir" ];then
+  #make sure vmdir is full paths, not ./
+  vmdir="$(readlink -f "$vmdir")"
   if [ -f "$vmdir/bvm-config" ];then
     debug "sourcing $vmdir/bvm-config"
     . "$vmdir/bvm-config"
