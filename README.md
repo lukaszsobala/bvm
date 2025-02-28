@@ -1,5 +1,6 @@
+<a href="https://github.com/Botspot/pi-apps"><img src="https://github.com/Botspot/pi-apps/blob/master/icons/badge.png?raw=true" align="right"/></a>
 ![BVM](https://raw.githubusercontent.com/Botspot/bvm/refs/heads/main/resources/graphics/icon-128.png)  
-Botspot Virtual Machine - Windows 11 QEMU KVM on ARM Linux
+## Botspot Virtual Machine - Windows 11 QEMU KVM on ARM Linux  
 ![20250226_23h09m13s_grim](https://github.com/user-attachments/assets/6cb7d139-8656-4a1e-ab9e-1cdd7d6d6431)  
 It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issues) good and bad results. Do not assume I am already aware of an issue, unless you can find it in [Issues](https://github.com/Botspot/bvm/issues), in which case please comment with something like "I'm having this problem too."  
 
@@ -22,6 +23,7 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 git clone https://github.com/Botspot/bvm
 bvm/bvm help
 ```
+Or, [install BVM from Pi-Apps.](https://pi-apps.io/install-app/install-botspot-virtual-machine-on-raspberry-pi/) It makes no difference.
 
 <details>
 <summary>Click to see what BVM does on first run.</summary>
@@ -39,7 +41,7 @@ If you are on Arch or some other non-standard OS, you will need to install these
 If Debian Bookworm is detected, BVM will set up the `bookworm-backports` APT repository in order to upgrade QEMU from 7.2 to 9.2. Version 7.2 does work, but it is missing pipewire audio output support, and besides, we all know newer is always better anyway! If you have a good reason to not want bookworm-backports, please open an issue, explain why, and I may be willing to change this behavior.  
 
 BVM also makes some icon symlinks in `~/.local/share/icons/hicolor/scalable/apps` to set the GUI's taskbar icon, and to override the QEMU and FreeRDP taskbar icons. If this does not work on your distro, or if you do not like this feature, please get in contact with me.  
-BVM now adds a menu launcher in the Office category to run the GUI. Contact me if you can make an argument that it belongs in a different category.  
+BVM now adds a menu launcher to `~/.local/share/applications/bvm.desktop` in the Office category to run the GUI. Contact me if you can make an argument that it belongs in a different category.  
 
 </details>
 
