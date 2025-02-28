@@ -23,7 +23,7 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 git clone https://github.com/Botspot/bvm
 bvm/bvm help
 ```
-Or, [install BVM from Pi-Apps.](https://pi-apps.io/install-app/install-botspot-virtual-machine-on-raspberry-pi/) It makes no difference.
+Or, [install BVM from Pi-Apps.](https://pi-apps.io/install-app/install-botspot-virtual-machine-on-raspberry-pi/) It does the same thing, but makes it easier to uninstall. BVM will stay updated no matter which way it is installed.
 
 <details>
 <summary>Click to see what BVM does on first run.</summary>
@@ -46,7 +46,7 @@ BVM now adds a menu launcher to `~/.local/share/applications/bvm.desktop` in the
 </details>
 
 ### Usage instructions
-Read the help message and follow the instructions. BVM has simplified the VM-creation process to a tidy sequence of completely automated steps. Between each step you have the opportunity to change what is happening, modify the config file, retry a step, or do whatever else you want. While BVM tries to be simple and user-friendly, this split-step approach opens the door to learning, adjusting, and creating new features on top.
+Read the help message and follow the instructions. BVM has simplified the VM-creation process to a tidy sequence of completely automated steps. Between each step you have the opportunity to change what is happening, modify the config file, retry a step, or do whatever else you want. This split-step approach helps enable better learning about how it works, adjusting how it works, and creating new features on top.
 
 To get a fresh VM up and running, use a sequence like this:  
 - `bvm/bvm new-vm ~/win11`  
