@@ -485,14 +485,18 @@ install_dependencies() { #try to install everything BVM needs
   export DEBIAN_FRONTEND=noninteractive
   #install dependencies with apt, if apt is found
   if [ "$installneeded" == 1 ] && command -v apt >/dev/null;then
+    status "Installing dependencies, please wait..."
+    #don't change the flags here in this apt command without updating the apt-detecting code on the pi-apps install script for BVM
     sudo apt install -y $apt_packages || error "APT failed to install required dependencies"
     
     #upgrade qemu to version from bookworm-backports
     if [ "$(get_codename)" == bookworm ];then
+      status "Upgrading QEMU to version from bookworm-backports repository..."
       echo "deb http://deb.debian.org/debian bookworm-backports main contrib non-free non-free-firmware" | sudo tee /etc/apt/sources.list.d/bookworm-backports.list >/dev/null
       sudo apt update
       sudo apt install -y -t bookworm-backports --only-upgrade qemu-system-arm qemu-system-gui || error "Failed to upgrade qemu-system-arm to the version from the Debian bookworm-backports repository."
     fi
+    status_green "Package installation complete!"
   elif [ "$installneeded" == 1 ];then
     #dependencies needed, but this is not a debian distro
     error "BVM needs these dependencies: $apt_packages\nBVM could not install them for you as your distro is not based on Debian, or at least, the apt command could not be found.\nPlease install the dependencies yourself, then try again."
