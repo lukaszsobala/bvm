@@ -44,9 +44,10 @@ debloat=true
 #Even more debugging: (displays every command run by the script)
 #set -x
 
-#USB forwarding: uncommant this line and replace vendorid and productid with what you find when running lsusb
-#do note this is not completely functional yet - the script needs to chown the USB device before QEMU can access it.
-#usb_forwarding_flags=(-usb -device usb-host,vendorid=0x'05dc',productid=0x'a720',driver=usb-host)
+#USB forwarding: uncomment this line
+#usb_passthrough='05dc:a720'
+#Replace 05dc:a720 with the value you see, for the device you want, from the output of lsusb
+#For multiple devices, keep it in those quotes, but separate each one with a space character.
 
 #Uncomment this to turn off animations (useful for X11 mainly)
 #reduce_graphics=true

@@ -534,6 +534,11 @@ Type=Application
 Categories=Office
 StartupNotify=true" > ~/.local/share/applications/bvm.desktop
   fi
+  
+  #make terminal command (may only work on future shell logins)
+  mkdir -p ~/.local/bin
+  [ ! -e ~/.local/bin/bvm ] && status "From now on you should be able to run BVM simply with 'bvm'. The command might not be detected by this terminal, but will work on future terminals."
+  ln -sf "${DIRECTORY}/bvm" ~/.local/bin/bvm
 }
 
 qemu_newer_than() { #check if QEMU is newer than specified version, return 0 if yes, return 1 if no
@@ -600,7 +605,7 @@ find_a76_cores() { #Some rockchip CPUs have A55 and A76 cores, and latest Window
   fi
 }
 
-DIRECTORY="$(readlink -f "$(dirname "$0")")"
+DIRECTORY="$(readlink -f "$(dirname "$(readlink -f "$0")")")"
 
 original_flags=("$@")
 
@@ -1097,7 +1102,7 @@ To get a fresh VM up and running, use a sequence like this:
     
   boot*) #complex QEMU command-line to boot OS for everyday use
     
-    [ "$mode" == boot ] && warning "Using the plain 'boot' mode is missing features and the screen cannot be resized. To fix this, use the boot-nodisplay mode and connect mode at the same time. See $0 help for more info. To hide this warning, replace boot with boot-gtk."
+    [ "$mode" == boot ] && warning "The plain 'boot' mode is a bit slow and missing features. To fix this, use '$0 boot-nodisplay $vmdir' and '$0 connect $vmdir' in a second terminal to use a RDP connection. Run '$0 help' for more info. To hide this warning, replace 'boot' with 'boot-gtk'."
     
     #choose display mode (ramfb, gtk, none)
     case "$mode" in
@@ -1131,12 +1136,27 @@ To get a fresh VM up and running, use a sequence like this:
       audio_flags=(-device usb-audio,audiodev=my_audiodev -audiodev "alsa,id=my_audiodev,out.buffer-length=1000000")
     fi
     
-    #handle USB forwarding preferences (handled by config file now)
-    forward_usb=05dc:a720
-    IFS=$'\n'
-    for line in $forward_usb ;do
-      usb_forwarding_flags=(-device usb-host,vendorid=0x'05dc',productid=0x'a720',driver=usb-host)
-    done
+    #handle USB forwarding preferences set by usb_passthrough variable
+    usb_forwarding_flags=() #this is not to be set in the config file, but created in the for loop. Set usb_passthrough instead.
+    if [ ! -z "$usb_passthrough" ];then
+      udev_file="/etc/udev/rules.d/10-bvm-hw-access${rdp_port}.rules"
+      sudo rm -f "$udev_file"
+      trap "sudo rm -f '$udev_file'" EXIT SIGINT #remove this udev rule file on exit
+      IFS=' '
+      for usbdev in $usb_passthrough ;do
+        vendor=$(echo "$usbdev" | awk -F: '{print $1}')
+        product=$(echo "$usbdev" | awk -F: '{print $2}')
+
+        #allow non-root qemu uaccess permission to this usb device (https://bbs.archlinux.org/viewtopic.php?id=209185)
+        echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="'$vendor'", ATTRS{idProduct}=="'$product'", TAG+="uaccess"' | sudo tee --append "$udev_file" >/dev/null
+        
+        usb_forwarding_flags+=(-device usb-host,vendorid=0x$vendor,productid=0x$product,driver=usb-host)
+      done
+      
+      #now reload udev rules
+      sudo udevadm control -R
+      sudo udevadm trigger
+    fi
     
     #determine if only some CPU cores can be used
     if a76_cores="$(find_a76_cores)" ;then
@@ -1182,7 +1202,7 @@ To get a fresh VM up and running, use a sequence like this:
     #This "balloon_popper" process is what's needed to make the virtio-balloon driver actually do something.
     while true;do
       sleep 1
-      qemu_pid="$(cat "$vmdir/qemu.pid")"
+      qemu_pid="$(cat "$vmdir/qemu.pid" 2>/dev/null)"
       [ -z "$qemu_pid" ] && continue
       
       free_ram=$(grep MemFree /proc/meminfo | awk '{print int($2/1024)}')
@@ -1195,10 +1215,11 @@ To get a fresh VM up and running, use a sequence like this:
       echo "balloon $balloon_size" | socat - UNIX-CONNECT:"$vmdir/qemu.sock" &>/dev/null
     done &
     balloon_popper=$!
+    trap "kill $balloon_popper 2>/dev/null" EXIT SIGINT
     
     #run qemu with these flags
     if [ "$use_taskset" == false ];then
-      qemu-system-aarch64 "${full_qemu_flags[@]}" 
+      qemu-system-aarch64 "${full_qemu_flags[@]}"
     else
       #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
       taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}"
