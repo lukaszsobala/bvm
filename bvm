@@ -151,13 +151,19 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
     error "mount_qcow2: failed to connect $1 to nbd device for mounting"
   fi
   
+  #the partition we want is partition 4, give it 4 seconds to appear
   sync
-  sleep 1
-  if [ ! -b ${nbd_device}p4 ];then #the partition we want is partition 4
+  local i=0
+  while [ ! -b ${nbd_device}p4 ] && [ $i != 5 ];do
+    sleep 1
+    i=$((i+1))
+  done
+  if [ $i == 5 ];then
     lsblk ${nbd_device}
     sudo qemu-nbd --disconnect "$nbd_device"
     error "mount_qcow2: Partition 4 not found"
   fi
+  #past this point, partition 4 exists
   
   sudo mkdir -p /media/$USER/bvm-mount$rdp_port
   umount_retry /media/$USER/bvm-mount$rdp_port
@@ -181,6 +187,23 @@ unmount_qcow2() { #unmount what was mounted by the mount_qcow2 function
     errors="$(sudo qemu-nbd --disconnect "$nbd_device" 2>&1)" || error "unmount_qcow2: '$errors'"
   fi
   sudo rmdir /media/$USER/bvm-mount$rdp_port
+}
+
+remove_microsoft_defender() { #given mountpoint on $1, remove microsoft defender files from image
+  local mountpoint="$1"
+  if [ "$debloat" == true ];then
+    defenderfound=0
+    [ -d "$mountpoint/ProgramData/Microsoft/Windows Defender" ] && defenderfound=1
+    if ! sudo rm -rf "$mountpoint/ProgramData/Microsoft/Windows Defender" "$mountpoint/ProgramData/Microsoft/Windows Defender Advanced Threat Protection"\
+      "$mountpoint/ProgramData/Microsoft/Windows Security Health" "$mountpoint/Program Files/Windows Defender" \
+      "$mountpoint/Program Files/Windows Defender Advanced Threat Protection" "$mountpoint/Windows/System32/smartscreen.dll" \
+      "$mountpoint/Windows/System32/smartscreen.exe" "$mountpoint/Windows/System32/smartscreenps.dll" \
+      "$mountpoint/Windows/SysWOW64/smartscreen.dll" "$mountpoint/Windows/SysWOW64/smartscreenps.dll" ;then
+      unmount_qcow2
+      error "Failed to remove Microsoft Defender from disk.qcow2. Most likely the install was interrupted or the VM encountered an unsafe shutdown."
+    fi
+    [ "$defenderfound" == 1 ] && status_green "Successuflly removed Microsoft Defender from disk.qcow2"
+  fi
 }
 
 download_windows_11arm64_22631() { #downloads older W11 version for ARMv8.0 CPUs such as the Raspberry Pi 4 or 3
@@ -1109,19 +1132,7 @@ To get a fresh VM up and running, use a sequence like this:
       (unmount_qcow2)
       error "It appears that Windows installation was not completed in disk.qcow2. C:/Program Files/Qemu-ga/qemu-ga.exe does not exist."
     fi
-    if [ "$debloat" == true ];then
-      defenderfound=0
-      [ -d "$mountpoint/ProgramData/Microsoft/Windows Defender" ] && defenderfound=1
-      if ! sudo rm -rf "$mountpoint/ProgramData/Microsoft/Windows Defender" "$mountpoint/ProgramData/Microsoft/Windows Defender Advanced Threat Protection"\
-        "$mountpoint/ProgramData/Microsoft/Windows Security Health" "$mountpoint/Program Files/Windows Defender" \
-        "$mountpoint/Program Files/Windows Defender Advanced Threat Protection" "$mountpoint/Windows/System32/smartscreen.dll" \
-        "$mountpoint/Windows/System32/smartscreen.exe" "$mountpoint/Windows/System32/smartscreenps.dll" \
-        "$mountpoint/Windows/SysWOW64/smartscreen.dll" "$mountpoint/Windows/SysWOW64/smartscreenps.dll" ;then
-        unmount_qcow2
-        error "Failed to remove Microsoft Defender from disk.qcow2. Most likely the install was interrupted or the VM encountered an unsafe shutdown."
-      fi
-      [ "$defenderfound" == 1 ] && status_green "Successuflly removed Microsoft Defender from disk.qcow2"
-    fi
+    remove_microsoft_defender "$mountpoint" || exit 1
     #if debloat is disabled, all this does is mount the disk.qcow2 to make sure it seems complete
     unmount_qcow2 || exit 1
     
@@ -1135,6 +1146,11 @@ To get a fresh VM up and running, use a sequence like this:
   boot*) #complex QEMU command-line to boot OS for everyday use
     
     [ "$mode" == boot ] && warning "The plain 'boot' mode is missing features, and you can't resize the screen. To fix this, use '$0 boot-nodisplay $vmdir' and in a second terminal '$0 connect $vmdir' to use a RDP connection. Run '$0 help' for more info. To hide this warning, replace 'boot' with 'boot-gtk'."
+    
+    #workaround for users experiencing microsoft defender removal failure
+    if [ "$(cat "$vmdir/gui-steps-complete")" == 4 ];then #this will be 4 because firstboot failed after succeeding
+      (mount_qcow2 "$vmdir/disk.qcow2" && remove_microsoft_defender "/media/$USER/bvm-mount$rdp_port" ; unmount_qcow2)
+    fi
     
     #choose display mode (ramfb, gtk, none)
     case "$mode" in
