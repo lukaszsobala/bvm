@@ -506,6 +506,11 @@ install_dependencies() { #try to install everything BVM needs
       fi
     done
     
+    #run apt update only if necessary
+    if [ ! -f /var/cache/apt/pkgcache.bin ];then
+      sudo apt update
+    fi
+    
     sudo apt install -y $will_install || error "APT failed to install required dependencies"
     
     #upgrade qemu to version from bookworm-backports
