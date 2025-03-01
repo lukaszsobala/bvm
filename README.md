@@ -10,7 +10,7 @@ It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issu
 - It uses network passthrough to the Linux network stack, so Ethernet and WiFi all work out of the box.
 - It uses audio passthrough to pipewire/pulseaudio/ALSA, so audio playback (and probably microphone input) works out of the box.
 - The VM uses less than 1GB of RAM and minimal CPU when not in use, leaving plenty of resources free for Linux applications.
-- The `connect` mode gives the VM access to files stored on Linux, and any changes are immediately synchronized.
+- The `connect` mode gives the VM access to files stored on Linux, and any changes are immediately synchronized. (Go to This PC and look for the `home` network share)
 - It (will soon be) capable of USB passthrough, so any USB device can be made to directly communicate with Windows.
 - Thanks to Microsoft's built-in [Prism emulator](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation), all Windows applications should work, including x86 and x64. Compare that to [Wine](https://pi-apps.io/install-app/install-wine-x64-on-raspberry-pi/), which fails on everything but old, simple programs.
 - The graphics are snappy and quicker than you would expect, at least with the `connect` mode on Wayland on a Pi 5. Youtube and lightweight web games are actually somewhat playable without any overclocking or extra tweaks.
