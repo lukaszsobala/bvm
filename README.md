@@ -42,6 +42,7 @@ If Debian Bookworm is detected, BVM will set up the `bookworm-backports` APT rep
 
 BVM also makes some icon symlinks in `~/.local/share/icons/hicolor/scalable/apps` to set the GUI's taskbar icon, and to override the QEMU and FreeRDP taskbar icons. If this does not work on your distro, or if you do not like this feature, please get in contact with me.  
 BVM now adds a menu launcher to `~/.local/share/applications/bvm.desktop` in the Office category to run the GUI. Contact me if you can make an argument that it belongs in a different category.  
+BVM symlinks itself to `~/.local/bin/bvm` so it can be run in a terminal with a simple invokation of `bvm`.
 
 </details>
 
