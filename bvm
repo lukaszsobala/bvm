@@ -139,7 +139,6 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
   #find /dev/nbd* device not in use
   local i=0
   while [ ! -z "$(lsblk /dev/nbd$i -no MOUNTPOINTS)" ];do
-    "$nbd_device"
     [ ! -b /dev/nbd$i ] && error "mount_qcow2: Failed to find available nbd device! All seem to be taken. Please run lsblk to see why."
     i=$((i+1))
   done
