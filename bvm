@@ -622,6 +622,16 @@ find_a76_cores() { #Some rockchip CPUs have A55 and A76 cores, and latest Window
   fi
 }
 
+qemu_exitcode_analyzer() {
+  case $? in
+    137)
+      error "QEMU was terminated for using too much RAM. Try enabling ZRAM.\nInstructions: https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi"
+      ;;
+    *)
+      error "QEMU did not exit successfully. Code was $?"
+  esac
+}
+
 DIRECTORY="$(readlink -f "$(dirname "$(readlink -f "$0")")")"
 
 original_flags=("$@")
@@ -1081,10 +1091,10 @@ To get a fresh VM up and running, use a sequence like this:
     status "Windows should install 100% automatically. This will take several hours."
     #run qemu with these flags
     if [ "$use_taskset" == false ];then
-      qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+      qemu-system-aarch64 "${full_qemu_flags[@]}" || qemu_exitcode_analyzer
     else
       #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
-      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || error "QEMU did not exit successfully."
+      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || qemu_exitcode_analyzer
     fi
     status "QEMU closed."
     
@@ -1250,7 +1260,7 @@ To get a fresh VM up and running, use a sequence like this:
     if [ $qemu_exit_code == 0 ];then
       status "QEMU closed."
     else
-      error "QEMU did not exit successfully."
+      (exit $qemu_exit_code) ; qemu_exitcode_analyzer
     fi
     ;;
   connect*)
