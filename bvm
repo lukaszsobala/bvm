@@ -687,9 +687,12 @@ update_check
 copy_icons
 
 #check system for compatibility
-if ! sudo modprobe kvm ;then
+if [ "$(id -u)" == 0 ]; then
+  error "BVM cannot be run as root user. Wayland programs need to be run as a non-root user."
+elif ! sudo modprobe kvm ;then
   error "KVM kernel module is needed but missing. Command that failed was 'sudo modprobe kvm'"
 
+#it seems being part of the kvm group is unnecessary
 #elif ! groups | grep -q ' kvm ' ;then
 #  sudo usermod -aG kvm $USER
 #  error "Your user was not part of kvm group. Now they are. Please reboot."
@@ -779,7 +782,7 @@ To get a fresh VM up and running, use a sequence like this:
         newvm) #1
           if [ -f "$vmdir/gui-steps-complete" ];then
             #pick location for new VM, this one already exists
-            vmdir="$(yad --class wlfreerdp --name wlfreerdp --title "BVM" --center --directory --file --save --width 500 --text="$vmdir already exists."$'\n'"Proceed only if you are trying to make a second VM.")"
+            vmdir="$(yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --center --directory --file --save --width 500 --text="$vmdir already exists."$'\n'"Proceed only if you are trying to make a second VM.")"
             if [ ! -z "$vmdir" ] && [ "$vmdir" != "$HOME" ];then
               kill $YAD_PID
               export vmdir
@@ -884,7 +887,7 @@ To get a fresh VM up and running, use a sequence like this:
     
     #the window freezes while running a task, and wayland times it out, so run on xwayland
     # <a href="\""https://github.com/sponsors/botspot"\"">Support Botspot</a>
-    GDK_BACKEND=x11 yad --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
+    GDK_BACKEND=x11 yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
       --image "${DIRECTORY}/resources/graphics/icon-80.png" --image-on-top --no-buttons \
       --text="Botspot Virtual Machine, at your service.$([ "$vmdir" != "$HOME/win11" ] && echo -e "\nvmdir: <u>$vmdir</u>")" \
       --field="<b>New Virtual Machine</b>!${DIRECTORY}/resources/graphics/1.png":FBTN "@bash -c 'clickhandler newvm'" \
