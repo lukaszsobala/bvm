@@ -1122,7 +1122,7 @@ To get a fresh VM up and running, use a sequence like this:
     
   boot*) #complex QEMU command-line to boot OS for everyday use
     
-    [ "$mode" == boot ] && warning "The plain 'boot' mode is a bit slow and missing features. To fix this, use '$0 boot-nodisplay $vmdir' and '$0 connect $vmdir' in a second terminal to use a RDP connection. Run '$0 help' for more info. To hide this warning, replace 'boot' with 'boot-gtk'."
+    [ "$mode" == boot ] && warning "The plain 'boot' mode is missing features, and you can't resize the screen. To fix this, use '$0 boot-nodisplay $vmdir' and in a second terminal '$0 connect $vmdir' to use a RDP connection. Run '$0 help' for more info. To hide this warning, replace 'boot' with 'boot-gtk'."
     
     #choose display mode (ramfb, gtk, none)
     case "$mode" in
