@@ -152,7 +152,9 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
   fi
   
   sync
+  sleep 1
   if [ ! -b ${nbd_device}p4 ];then #the partition we want is partition 4
+    lsblk ${nbd_device}
     sudo qemu-nbd --disconnect "$nbd_device"
     error "mount_qcow2: Partition 4 not found"
   fi
