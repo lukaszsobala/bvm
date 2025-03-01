@@ -760,7 +760,7 @@ To get a fresh VM up and running, use a sequence like this:
       
       local define_step_complete="step_complete() { #runs after our main command, keeps the terminal open and 
         if [ \$? == 0 ];then
-          echo -e '\e[102m\e[30mOperation succeeded. Please close this terminal to proceed to the next step.!\e[0m'
+          echo -e '\e[102m\e[30mOperation succeeded. Please close this terminal to proceed to the next step.\e[0m'
           read enter
         else
           echo -e '\e[101m\e[30mOperation failed! Please review the errors above.\e[0m'
@@ -794,7 +794,7 @@ To get a fresh VM up and running, use a sequence like this:
               setsid "${DIRECTORY}/bvm" gui 1>&2
             fi
           else
-            run_in_terminal "${DIRECTORY}/bvm new-vm '$vmdir' ; step_complete 1"
+            run_in_terminal "${DIRECTORY}/bvm new-vm '$vmdir' ; step_complete"
           fi
           ;;
         editconf) #2
@@ -806,29 +806,32 @@ To get a fresh VM up and running, use a sequence like this:
           fi
           sleep 5
           #mark this step as complete
-          echo "2" > "$vmdir/gui-steps-complete"
+          if [ 2 -gt "$(cat "$vmdir/gui-steps-complete")" ];then
+            echo 2 > "$vmdir/gui-steps-complete"
+          fi
           ;;
         download) #3
-          run_in_terminal "${DIRECTORY}/bvm download '$vmdir' ; step_complete 3"
+          run_in_terminal "${DIRECTORY}/bvm download '$vmdir' ; step_complete"
           ;;
         prepare) #4
-          run_in_terminal "${DIRECTORY}/bvm prepare '$vmdir' ; step_complete 4"
+          run_in_terminal "${DIRECTORY}/bvm prepare '$vmdir' ; step_complete"
           ;;
         firstboot) #5
-          run_in_terminal "${DIRECTORY}/bvm firstboot '$vmdir' ; step_complete 5"
+          run_in_terminal "${DIRECTORY}/bvm firstboot '$vmdir' ; step_complete"
           ;;
-        boot) #6
-          #view mode provided on $2
+        boot) #6, view mode provided on $2
           
+          #change green message to not say next step
+          define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM!\n'"$(echo -e '\e[103m\e[103m')"'Consider supporting the developer Botspot, who is in a precarious life situation right now. Read more here:'"$(echo -e '\e[96m\e[40m')"'  https://github.com/sponsors/Botspot'"$(echo -e '\e[0m')"'+g')"
           case "$2" in
             Direct)
-              run_in_terminal "${DIRECTORY}/bvm boot '$vmdir' ; step_complete 6"
+              run_in_terminal "${DIRECTORY}/bvm boot '$vmdir' ; step_complete"
               ;;
             FreeRDP)
-              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete 6"
+              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete"
               ;;
             Remmina)
-              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete 6"
+              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete"
               ;;
           esac
           ;;
@@ -1248,7 +1251,7 @@ To get a fresh VM up and running, use a sequence like this:
     #wait for network port to open, indicating the machine is ready for connection
     status -n "Waiting for RDP service on VM to start listening on port $rdp_port... "
     while true;do
-      #Once the RDP port to open, it means the VM is ready for connections
+      #Once the RDP port is open, it means the VM is ready for connections
       if nmap -p "$rdp_port" --script="${DIRECTORY}/resources/rdp-detector.nse" localhost | grep -qF 'RDP service detected';then
         break
       elif ! process_exists "$(cat "$vmdir/qemu.pid" 2>/dev/null)" ;then
@@ -1258,36 +1261,68 @@ To get a fresh VM up and running, use a sequence like this:
     done
     status_green Done
     
-    case "$mode" in
-      connect-freerdp|connect)
-        
-        freerdp_flags=(/v:127.0.0.1:$rdp_port /u:$vm_username /p:$vm_password /relax-order-checks /cert:ignore +auto-reconnect \
-          /dynamic-resolution /sound +window-drag -sec-rdp -sec-tls +offscreen-cache +home-drive +menu-anims +multitouch \
-          -compression -encryption +drives /auto-reconnect-max-retries:10 +async-input +async-channels +clipboard +gfx-progressive \
-          /gfx +aero +bitmap-cache /t:"BVM connect")
-        #support a reduced graphics mode that can be enabled in the config file - for x11 mainly
-        if [ "$reduce_graphics" == true ];then
-          freerdp_flags+=(-window-drag -aero -menu-anims)
+    while true;do #Relaunch the viewer between VM reboots
+      case "$mode" in
+        connect-freerdp|connect)
+          
+          freerdp_flags=(/v:127.0.0.1:$rdp_port /u:$vm_username /p:$vm_password /relax-order-checks /cert:ignore +auto-reconnect \
+            /dynamic-resolution /sound +window-drag -sec-rdp -sec-tls +offscreen-cache +home-drive +menu-anims +multitouch \
+            -compression -encryption +drives /auto-reconnect-max-retries:10 +async-input +async-channels +clipboard +gfx-progressive \
+            /gfx +aero +bitmap-cache /t:"BVM connect")
+          #support a reduced graphics mode that can be enabled in the config file - for x11 mainly
+          if [ "$reduce_graphics" == true ];then
+            freerdp_flags+=(-window-drag -aero -menu-anims)
+          fi
+          
+          $freerdp_command "${freerdp_flags[@]}" "${add_freerdp_flags[@]}"
+          ;;
+        connect-remmina)
+          
+          #change remmina's graphical settings based on reduce_graphics setting
+          if [ "$reduce_graphics" == true ];then
+            quality=0
+          else
+            quality=9
+          fi
+          #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
+          cp -n "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
+          echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality
+          
+          #now run remmina with its newly created/updated config file
+          remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon
+          ;;
+      esac
+      status "RDP viewer exited. Analyzing..."
+      sleep 5
+      
+      #wait for RDP service to come back, or exit loop if QEMU stopped
+      messaged=0
+      while true;do
+        #Once the RDP port is open, it means the VM is ready for connections
+        if ! process_exists "$(cat "$vmdir/qemu.pid" 2>/dev/null)" ;then
+          status "VM is no longer running. Exiting $mode mode."
+          exit 0 #end script, rdp exited because vm shutdown
+        elif nmap -p "$rdp_port" --script="${DIRECTORY}/resources/rdp-detector.nse" localhost | grep -qF 'RDP service detected';then
+          #if immediately back online, then no reboot took place. Wait for user input to reconnect
+          if [ $messaged == 1 ];then
+            status_green "VM is back online. Connecting..."
+            sleep 5 #connecting too early sometimes had error about "another user is already connected"
+            break #vm is still running and RDP is back, so reconnect to it
+          else
+            #immediately got to this state, so VM never went offline but RDP viewer closed.
+            #ask for user input to prevent a forever failed connection loop
+            status_green "VM never went offline."
+            status -n "Assuming you disconnected. Press any key to reconnect."
+            read -N1 key
+            break
+          fi
+        elif [ $messaged == 0 ];then
+          status "VM appears to be rebooting. Waiting..."
+          messaged=1
         fi
-        
-        $freerdp_command "${freerdp_flags[@]}" "${add_freerdp_flags[@]}"
-        ;;
-      connect-remmina)
-        
-        #change remmina's graphical settings based on reduce_graphics setting
-        if [ "$reduce_graphics" == true ];then
-          quality=0
-        else
-          quality=9
-        fi
-        #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
-        cp -n "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
-        echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality
-        
-        #now run remmina with its newly created/updated config file
-        remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon
-        ;;
-    esac
+        sleep 3
+      done
+    done
     ;;
   mount)
     
