@@ -594,18 +594,30 @@ copy_icons() { #install icons to a location where the panel will notice them
 }
 
 find_a76_cores() { #Some rockchip CPUs have A55 and A76 cores, and latest Windows will only support A76. Return 1 if not all cores are the same, list the A76 ones no matter what
-  local cores="$(cat /proc/cpuinfo | grep 'processor\|Features\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
+  local cores="$(cat /proc/cpuinfo | grep '^CPU part\|^processor\|^Features\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
   
-  local a76_cores="$(echo "$cores" | grep -w fphp | awk '{print $3}')"
-  local non_a76_cores="$(echo "$cores" | grep -vw fphp | awk '{print $3}')"
+  local a76_cores=''
+  local non_a76_cores=''
   
+  #seems that big.LITTLE cores all have the same capabilities.
+  if echo "$cores" | grep -qw fphp ;then
+    a76_cores="$(echo "$cores" | grep -w fphp | awk '{print $3}')"
+    
+    #if rockchip big.LITTLE, check for serial number of each CPU core
+    if echo "$cores" | grep -q 0xd05 && echo "$cores" | grep -q 0xd0b ;then
+      a76_cores="$(echo "$cores" | grep -w 0xd0b | awk '{print $3}')"
+      non_a76_cores="$(echo "$cores" | grep -w 0xd05 | awk '{print $3}')"
+    fi
+  else
+    non_a76_cores="$(echo "$cores" | grep -vw fphp | awk '{print $3}')"
+  fi
+  
+  echo "$a76_cores"
   if [ -z "$a76_cores" ] || [ -z "$non_a76_cores" ];then
     #all the cores are the same
-    echo "$a76_cores"
     return 0
   else
     #list the cores that are A76
-    echo "$a76_cores"
     return 1
   fi
 }
