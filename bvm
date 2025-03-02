@@ -365,7 +365,7 @@ download_windows_11arm64() { #download latest stable windows 11 ISO language $do
   echo -n "  - Verifying download... "
   sha256="$(sha256sum "${vmdir}/installer.iso" | awk '{print $1}')"
   echo Done
-  if echo "$iso_download_page_html" | grep -qF "$sha256" ;then #webpage has a list of sha256 sums per language, and the langs are named differently than here. So just check if it matches any of them.
+  if echo "$iso_download_page_html" | grep -qiF "$sha256" ;then #webpage has a list of sha256 sums per language, and the langs are named differently than here. So just check if it matches any of them.
     echo "  - Verification successful."
   else
     error "installer.iso seems corrupted after download. Its sha256sum was:\n$sha256\nwhich does not match any on this list:$(echo "$iso_download_page_html" | grep '<td>' | sed 's/<td>//g ; s+</td>++g ; s/<tr>//g ; s+</tr>++g')"
