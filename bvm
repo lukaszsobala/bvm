@@ -552,6 +552,7 @@ install_dependencies() { #try to install everything BVM needs
   
   #make menu launcher for GUI mode
   if [ ! -f ~/.local/share/applications/bvm.desktop ] || ! grep -qF "$DIRECTORY/bvm" ~/.local/share/applications/bvm.desktop ;then
+    mkdir -p ~/.local/share/applications
     echo "[Desktop Entry]
 Name=Botspot Virtual Machine
 Comment=Simple GUI for running Windows 11 with BVM
