@@ -360,6 +360,16 @@ download_windows_11arm64() { #download latest stable windows 11 ISO language $do
   
   # Download ISO
   wget -nv --show-progress "${iso_download_link}" -O "${vmdir}/installer.iso" || error "Failed to download Windows 11 installer.iso from Microsoft\n$failed_instructions"
+  
+  #verify
+  echo -n "  - Verifying download... "
+  sha256="$(sha256sum "${vmdir}/installer.iso" | awk '{print $1}')"
+  echo Done
+  if echo "$iso_download_page_html" | grep -qF "$sha256" ;then #webpage has a list of sha256 sums per language, and the langs are named differently than here. So just check if it matches any of them.
+    echo "  - Verification successful."
+  else
+    error "installer.iso seems corrupted after download. Its sha256sum was:\n$sha256\nwhich does not match any on this list:$(echo "$iso_download_page_html" | grep '<td>' | sed 's/<td>//g ; s+</td>++g ; s/<tr>//g ; s+</tr>++g')"
+  fi
 }
 
 patch_iso_noprompt() { #force the specified windows iso not require keypress to boot into installer - by botspot
