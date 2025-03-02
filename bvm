@@ -90,7 +90,6 @@ ${white}BOTSPOT  VIRTUAL  MACHINE  ${black}    ${rpired}     ${black}           
 "Minimum requirements? How about minimum suggestions. That’s better."
 "The only thing more surprising than this working... is how well it works."
 "Think of this as a very elaborate benchmark... for both you and your hardware."'
-#\e[103m\e[30m"SUPPORT the college student who made BVM! He lost family support recently and would prefer to not become homeless. :) \e[0m\e[5m\e[4m\e[96mhttps://github.com/sponsors/botspot\e[0m\e[103m\e[30m   "\e[0m'
   echo -e "$funny_messages" | shuf | sed -n $((RANDOM%10+1))p | tee /dev/stderr | (grep -q DONATE && sleep 10)
 }
 
@@ -834,7 +833,6 @@ To get a fresh VM up and running, use a sequence like this:
       unset GDK_BACKEND
       export GDK_BACKEND
       
-      echo "clickhandler input $@" 1>&2
       case "$1" in
         newvm) #1
           if [ -f "$vmdir/gui-steps-complete" ];then
@@ -874,10 +872,10 @@ To get a fresh VM up and running, use a sequence like this:
         boot) #6, view mode provided on $2
           
           #change green message to not say next step
-          define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM!\n'"$(echo -e '\e[103m\e[103m')"'Consider supporting the developer Botspot, who is in a precarious life situation right now. Read more here:'"$(echo -e '\e[96m\e[40m')"'  https://github.com/sponsors/Botspot'"$(echo -e '\e[0m')"'+g')"
+          define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM! This terminal can be closed now.+g')"
           case "$2" in
             Direct)
-              run_in_terminal "${DIRECTORY}/bvm boot '$vmdir' ; step_complete"
+              run_in_terminal "${DIRECTORY}/bvm boot-gtk '$vmdir' ; step_complete"
               ;;
             FreeRDP)
               run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete"
@@ -946,7 +944,6 @@ To get a fresh VM up and running, use a sequence like this:
     fi
     
     #the window freezes while running a task, and wayland times it out, so run on xwayland
-    # <a href="\""https://github.com/sponsors/botspot"\"">Support Botspot</a>
     GDK_BACKEND=x11 yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
       --image "${DIRECTORY}/resources/graphics/icon-80.png" --image-on-top --no-buttons \
       --text="Botspot Virtual Machine, at your service.$([ "$vmdir" != "$HOME/win11" ] && echo -e "\nvmdir: <u>$vmdir</u>")" \
@@ -1277,6 +1274,7 @@ To get a fresh VM up and running, use a sequence like this:
     
     if [ $qemu_exit_code == 0 ];then
       status "QEMU closed."
+      echo -e '\e[103m\e[30mConsider supporting the developer Botspot, who is in a precarious life situation right now. Read more here:\e[96m\e[40m  \e[4mhttps://github.com/sponsors/Botspot\e[0m'
     else
       (exit $qemu_exit_code) ; qemu_exitcode_analyzer
     fi
