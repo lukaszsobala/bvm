@@ -1072,7 +1072,7 @@ To get a fresh VM up and running, use a sequence like this:
     rm -f "$vmdir/disk.qcow2" || error "Failed to delete $vmdir/disk.qcow2"
     
     status -n "Allocating 40GB for main install drive... "
-    errors="$(qemu-img create -f qcow2 -o cluster_size=2M,nocow=on,preallocation=falloc "$vmdir/disk.qcow2" "${disksize}G" 2>&1)" || error "\nFailed to create $vmdir/disk.qcow2\nErrors:\n$errors"
+    errors="$(qemu-img create -f qcow2 -o cluster_size=2M,nocow=on,preallocation=metadata "$vmdir/disk.qcow2" "${disksize}G" 2>&1)" || error "\nFailed to create $vmdir/disk.qcow2\nErrors:\n$errors"
     status_green Done
     
     #for GUI: track which step was completed
