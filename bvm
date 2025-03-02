@@ -1092,6 +1092,10 @@ To get a fresh VM up and running, use a sequence like this:
     
   firstboot) #minimal QEMU command-line to get through OS installation from installer.iso to disk.qcow2
     
+    if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ];then
+      error "BVM needs a desktop environment to run $mode"
+    fi
+    
     #determine if only some CPU cores can be used
     if a76_cores="$(find_a76_cores)" ;then
       #function returned 0, so all cores are the same and taskset is not needed
@@ -1154,9 +1158,13 @@ To get a fresh VM up and running, use a sequence like this:
     
     [ "$mode" == boot ] && warning "The plain 'boot' mode is missing features, and you can't resize the screen. To fix this, use '$0 boot-nodisplay $vmdir' and in a second terminal '$0 connect $vmdir' to use a RDP connection. Run '$0 help' for more info. To hide this warning, replace 'boot' with 'boot-gtk'."
     
-    #workaround for users experiencing microsoft defender removal failure
+    #workaround for users who experienced microsoft defender removal failure on firstboot (https://github.com/Botspot/bvm/issues/19)
     if [ "$(cat "$vmdir/gui-steps-complete")" == 4 ];then #this will be 4 because firstboot failed after succeeding
       (mount_qcow2 "$vmdir/disk.qcow2" && remove_microsoft_defender "/media/$USER/bvm-mount$rdp_port" ; unmount_qcow2)
+    fi
+    
+    if [ "$mode" != boot-nodisplay ] && [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ];then
+      error "BVM needs a desktop environment to run $mode"
     fi
     
     #choose display mode (ramfb, gtk, none)
@@ -1293,6 +1301,8 @@ To get a fresh VM up and running, use a sequence like this:
     #make sure the qemu process is running
     if ! process_exists "$(cat "$vmdir/qemu.pid" 2>/dev/null)" ;then
       error "QEMU does not appear to be running. You need to run the VM first before you can view its screen."
+    elif [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ];then
+      error "BVM needs a desktop environment to run $mode"
     fi
     
     if [ "$XDG_SESSION_TYPE" == wayland ];then
