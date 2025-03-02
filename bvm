@@ -1339,7 +1339,7 @@ To get a fresh VM up and running, use a sequence like this:
           fi
           #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
           cp -n "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
-          echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality
+          echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality\n$HOME" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality --set-option drive
           
           #now run remmina with its newly created/updated config file
           remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon
