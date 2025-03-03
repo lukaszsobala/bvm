@@ -64,8 +64,8 @@ debloat=true
 #See all options by running wlfreerdp -help or xfreerdp -help
 
 #Network settings: leave this alone unless you know what you are doing and need to change it.
-#For security, the VM's RDP port is only accessible on localhost, not on the local network. To change that, replace 127.0.0.1 with 0.0.0.0
-#Do not replace 3389 here with your value of rdp_port set above. This 3389 is the port on the Windows side that is redirected to rdp_port, and will always be 3389.
+#For security, the VM's RDP port is only accessible on localhost, not on the LAN. To change that, replace 127.0.0.1 with 0.0.0.0
+#Do not change 3389 here with your value of rdp_port set above. This 3389 is the port on the Windows side that is redirected to $rdp_port, and will always be 3389.
 #Comment this line out to prevent the VM from connecting to the Internet. (untested)
 network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
 
