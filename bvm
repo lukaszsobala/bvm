@@ -627,24 +627,14 @@ copy_icons() { #install icons to a location where the panel will notice them
   #for wf-panel-pi at least, updating icon caches seems to do no good
 }
 
-find_a76_cores() { #Some rockchip CPUs have A55 and A76 cores, and latest Windows will only support A76. Return 1 if not all cores are the same, list the A76 ones no matter what
-  local cores="$(cat /proc/cpuinfo | grep '^CPU part\|^processor\|^Features\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
+find_a76_cores() { #Support big.LITTLE cpus such as RK3588. Return 1 if not all cores are equal, list the A76 ones no matter what
+  local cores="$(cat /proc/cpuinfo | grep '^CPU part\|^processor\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
   
-  local a76_cores=''
-  local non_a76_cores=''
+  #list of A76+ core part numbers: https://github.com/bp0/armids/blob/master/arm.ids
+  local grep_match='0xd0b\|0xd0c\|0xd0d\|0xd13\|0xd20\|0xd21\|0xd4a'
   
-  #seems that big.LITTLE cores all have the same capabilities.
-  if echo "$cores" | grep -qw fphp ;then
-    a76_cores="$(echo "$cores" | grep -w fphp | awk '{print $3}')"
-    
-    #if rockchip big.LITTLE, check for serial number of each CPU core
-    if echo "$cores" | grep -q 0xd05 && echo "$cores" | grep -q 0xd0b ;then
-      a76_cores="$(echo "$cores" | grep -w 0xd0b | awk '{print $3}')"
-      non_a76_cores="$(echo "$cores" | grep -w 0xd05 | awk '{print $3}')"
-    fi
-  else
-    non_a76_cores="$(echo "$cores" | grep -vw fphp | awk '{print $3}')"
-  fi
+  local a76_cores="$(echo "$cores" | grep -w "$grep_match" | awk '{print $3}')"
+  local non_a76_cores="$(echo "$cores" | grep -vw "$grep_match" | awk '{print $3}')"
   
   echo "$a76_cores"
   if [ -z "$a76_cores" ] || [ -z "$non_a76_cores" ];then
@@ -957,12 +947,12 @@ To get a fresh VM up and running, use a sequence like this:
     GDK_BACKEND=x11 yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
       --image "${DIRECTORY}/resources/graphics/icon-80.png" --image-on-top --no-buttons \
       --text="Botspot Virtual Machine, at your service.$([ "$vmdir" != "$HOME/win11" ] && echo -e "\nvmdir: <u>$vmdir</u>")" \
-      --field="<b>New Virtual Machine</b>!${DIRECTORY}/resources/graphics/1.png":FBTN "@bash -c 'clickhandler newvm'" \
-      --field="<b>Edit configuration file</b>!${DIRECTORY}/resources/graphics/2.png":FBTN "$initial_button2" \
-      --field="<b>Download components</b>!${DIRECTORY}/resources/graphics/3.png":FBTN "$initial_button3" \
-      --field="<b>Prepare for installation</b>!${DIRECTORY}/resources/graphics/4.png":FBTN "$initial_button4" \
-      --field="<b>Install Windows 11</b>!${DIRECTORY}/resources/graphics/5.png":FBTN "$initial_button5" \
-      --field="<b>Run Windows 11</b>!${DIRECTORY}/resources/graphics/6.png":FBTN "$initial_button6" \
+      --field="<b>New Virtual Machine</b>!${DIRECTORY}/resources/graphics/1.png!Make a folder to put the VM files in - by default this is ~/win11":FBTN "@bash -c 'clickhandler newvm'" \
+      --field="<b>Edit configuration file</b>!${DIRECTORY}/resources/graphics/2.png!Please take the time to read through it.":FBTN "$initial_button2" \
+      --field="<b>Download components</b>!${DIRECTORY}/resources/graphics/3.png!Download everything needed to complete a windows install":FBTN "$initial_button3" \
+      --field="<b>Prepare for installation</b>!${DIRECTORY}/resources/graphics/4.png!Bundle up driver files and get ready for first boot":FBTN "$initial_button4" \
+      --field="<b>Install Windows 11</b>!${DIRECTORY}/resources/graphics/5.png!Boot the VM for the first time to install Windows":FBTN "$initial_button5" \
+      --field="<b>Run Windows 11</b>!${DIRECTORY}/resources/graphics/6.png!Boot the VM normally":FBTN "$initial_button6" \
       --field="Viewing mode":CB "Direct!^FreeRDP!Remmina"
     ;;
   new-vm)
@@ -980,7 +970,7 @@ To get a fresh VM up and running, use a sequence like this:
     ;;
   download) #get everything downloaded, and leave it in a state where user can make changes easily
     
-    #ensure there is 40G of free space to download everything (user can ignore this error except on GUI, where they have to edit the config to work around it)
+    #ensure there is free space to download everything (user can ignore this error except on GUI, where they have to edit the config to work around it)
     if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
       error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
     fi
@@ -1078,7 +1068,7 @@ To get a fresh VM up and running, use a sequence like this:
     fi  
     rm -f "$vmdir/disk.qcow2" || error "Failed to delete $vmdir/disk.qcow2"
     
-    status -n "Allocating 40GB for main install drive... "
+    status -n "Allocating ${disksize}GB for main install drive... "
     errors="$(qemu-img create -f qcow2 -o cluster_size=2M,nocow=on,preallocation=metadata "$vmdir/disk.qcow2" "${disksize}G" 2>&1)" || error "\nFailed to create $vmdir/disk.qcow2\nErrors:\n$errors"
     status_green Done
     
@@ -1108,6 +1098,7 @@ To get a fresh VM up and running, use a sequence like this:
       use_taskset=true
     fi
     
+    #Duplicate unattended.iso to try to always make one of them take the F: drive letter, no matter how D: and E: decide to arrange themselves it should work
     full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $num_cores \
       -name BVM \
       -pidfile "$vmdir/qemu.pid" \
@@ -1120,6 +1111,7 @@ To get a fresh VM up and running, use a sequence like this:
       -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
       -drive media=cdrom,index=0,file="$vmdir/installer.iso",if=none,id=installer,readonly=on -device usb-storage,drive=installer \
       -drive media=cdrom,index=1,file="$vmdir/unattended.iso",if=none,id=unattended,readonly=on -device usb-storage,drive=unattended \
+      -drive media=cdrom,index=2,file="$vmdir/unattended.iso",if=none,id=unattended2,readonly=on -device usb-storage,drive=unattended2 \
       -drive file="$vmdir/disk.qcow2",if=virtio,aio=threads,cache=none)
     
     debug "full_qemu_flags: " "${full_qemu_flags[@]}"
@@ -1258,7 +1250,7 @@ To get a fresh VM up and running, use a sequence like this:
     debug "full_qemu_flags: " "${full_qemu_flags[@]}"
     
     #always try to pick optimal VM RAM limit by sending repeated balloon requests
-    total_ram=$( grep MemTotal /proc/meminfo | awk '{print int($2/1024)}')
+    total_ram=$(grep MemTotal /proc/meminfo | awk '{print int($2/1024)}')
     
     #try to keep free_ram_goal MB free RAM on Linux at all times by setting the balloon size of the VM
     #Windows will eat as much RAM as possible for caches, so it can be reallocated as needed.
