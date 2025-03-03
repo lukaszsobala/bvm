@@ -134,7 +134,7 @@ umount_retry() { #wrapper for umount command - try several times if it is still 
 
 mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_port folder (rdp_port is just a convenient way to prevent conflict
   sudo modprobe nbd || error "mount_qcow2: 'sudo modprobe nbd' failed"
-  
+  sync
   #find /dev/nbd* device not in use
   local i=0
   while [ ! -z "$(lsblk /dev/nbd$i -no MOUNTPOINTS)" ];do
@@ -143,17 +143,23 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
   done
   local nbd_device=/dev/nbd$i
   
-  if ! sudo qemu-nbd --connect="$nbd_device" "$1";then
+  #make block devices for disk image, retry up to 5 times
+  i=0
+  while [ $i != 5 ] && ! sudo qemu-nbd --connect="$nbd_device" "$1";do
+    sudo qemu-nbd --disconnect "$nbd_device"
+    sleep 2
+    i=$((i+1))
+  done
+  if [ $i == 5 ];then
     #make device failed, unmount and cleanup
     sudo qemu-nbd --disconnect "$nbd_device"
     error "mount_qcow2: failed to connect $1 to nbd device for mounting"
   fi
   
-  #the partition we want is partition 4, give it 4 seconds to appear
-  sync
-  local i=0
+  #the partition we want is partition 4, give it 8 seconds to appear
+  i=0
   while [ ! -b ${nbd_device}p4 ] && [ $i != 5 ];do
-    sleep 1
+    sleep 2
     i=$((i+1))
   done
   if [ $i == 5 ];then
