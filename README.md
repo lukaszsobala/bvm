@@ -2,7 +2,8 @@
 ![BVM](https://raw.githubusercontent.com/Botspot/bvm/refs/heads/main/resources/graphics/icon-128.png)  
 ## Botspot Virtual Machine - Windows 11 QEMU KVM on ARM Linux  
 ![20250304_01h53m41s_grim](https://github.com/user-attachments/assets/7b368dad-eb80-4579-be2e-12a737819f24)  
-It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issues) good and bad results. Do not assume I am already aware of an issue, unless you can find it in [Issues](https://github.com/Botspot/bvm/issues), in which case please comment with something like "I'm having this problem too."  
+The Pi 5 just became a much more capable desktop replacement. [See how I'm using BVM for class.](https://github.com/Botspot/bvm/discussions/39)  
+Please [report](https://github.com/Botspot/bvm/issues) issues. Do not assume I am already aware of an issue, unless you can find an existing issue report, in which case please comment with something like "I'm having this problem too."  
 
 ### What to expect:
 - A full Windows 11 ARM virtual machine on ARM Linux. Thanks to [KVM](https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine), this uses virtualization instead of emulation, resulting in no significant speed difference compared to installing Windows directly.
