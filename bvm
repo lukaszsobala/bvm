@@ -693,6 +693,13 @@ usb_passthrough_frontend() { #help the user add USB devices to be forwarded to t
     #no devices specified, reset line to default and comment it out
     sed -i "s/^usb_passthrough=.*/#usb_passthrough='05dc:a720'/g" "$vmdir/bvm-config"
   else
+    #First make sure config file has usb_passthrough section. If not, add it.
+    grep -q usb_passthrough "$vmdir/bvm-config" || echo "
+#USB forwarding: uncomment this line for the VM to have direct access to a USB device.
+#usb_passthrough='05dc:a720'
+#Replace 05dc:a720 with the value you see, for the device you want, from the output of lsusb
+#For multiple devices, keep it in those quotes, but separate each one with a space character." >> "$vmdir/bvm-config"
+    
     #edit config file to uncomment the line and replace it with user-selected list of usb devices
     sed -i "s/^#usb_passthrough=/usb_passthrough=/g ; s/^usb_passthrough=.*/usb_passthrough='$(echo "$output" | grep . | tr '\n' ' ' | sed 's/ $//g')'/g" "$vmdir/bvm-config"
   fi
