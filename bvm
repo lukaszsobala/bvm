@@ -25,7 +25,7 @@ status_green() { #announce the success of a major action
 
 debug() { #an echo command that only runs when debug mode is on
   if [ "$bvm_debug" == true ];then
-    echo "$@"
+    echo "$@" 1>&2
   fi
 }
 
@@ -132,28 +132,30 @@ umount_retry() { #wrapper for umount command - try several times if it is still 
   done
 }
 
-mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_port folder (rdp_port is just a convenient way to prevent conflict
-  sudo modprobe nbd || error "mount_qcow2: 'sudo modprobe nbd' failed"
-  sync
-  #find /dev/nbd* device not in use
+connect_qcow2_to_nbd() { #find unused /dev/nbd* device to use, register it with the specified qcow2 image, echo it
+  sudo modprobe nbd || error "find_available_nbd: 'sudo modprobe nbd' failed"
+  sync #wait for any writes to finish
+  
+  #find a /dev/nbd* device not in use
   local i=0
   while [ ! -z "$(lsblk /dev/nbd$i -no MOUNTPOINTS)" ];do
-    [ ! -b /dev/nbd$i ] && error "mount_qcow2: Failed to find available nbd device! All seem to be taken. Please run lsblk to see why."
+    [ ! -b /dev/nbd$i ] && error "connect_qcow2_to_nbd: Failed to find available nbd device! All seem to be taken. Please run lsblk to see why."
     i=$((i+1))
   done
-  local nbd_device=/dev/nbd$i
+  local nbd_device="/dev/nbd$i"
   
   #make block devices for disk image, retry up to 5 times
   i=0
   while [ $i != 5 ] && ! sudo qemu-nbd --connect="$nbd_device" "$1";do
-    sudo qemu-nbd --disconnect "$nbd_device"
+    sudo qemu-nbd --disconnect "$nbd_device" 1>&2
+    (unmount_qcow2) #unmounts it if it already is
     sleep 2
     i=$((i+1))
   done
   if [ $i == 5 ];then
     #make device failed, unmount and cleanup
-    sudo qemu-nbd --disconnect "$nbd_device"
-    error "mount_qcow2: failed to connect $1 to nbd device for mounting"
+    sudo qemu-nbd --disconnect "$nbd_device" 1>&2
+    error "connect_qcow2_to_nbd: failed to connect $1 to nbd device for mounting"
   fi
   
   #the partition we want is partition 4, give it 8 seconds to appear
@@ -165,9 +167,17 @@ mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_por
   if [ $i == 5 ];then
     lsblk ${nbd_device}
     sudo qemu-nbd --disconnect "$nbd_device"
-    error "mount_qcow2: Partition 4 not found"
+    error "connect_qcow2_to_nbd: Partition 4 not found"
   fi
   #past this point, partition 4 exists
+  
+  echo "$nbd_device"
+}
+
+mount_qcow2() { #mount the $1 qcow2 disk image to /media/$USER/bvm-mount$rdp_port folder (rdp_port is just a convenient way to prevent conflict
+  
+  #find /dev/nbd* device not in use
+  local nbd_device="$(connect_qcow2_to_nbd "$1")" || exit 1
   
   sudo mkdir -p /media/$USER/bvm-mount$rdp_port
   umount_retry /media/$USER/bvm-mount$rdp_port
@@ -490,8 +500,8 @@ package_installed() { #exit 0 if $1 package is installed, otherwise exit 1
 }
 
 install_dependencies() { #try to install everything BVM needs
-  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen wiminfo socat"
-  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools socat"
+  required_commands="git jq wget mkisofs qemu-img qemu-system-aarch64 remmina nmap wget yad uuidgen wiminfo socat ntfsresize"
+  apt_packages="git jq wget genisoimage qemu-utils qemu-system-arm qemu-system-gui qemu-efi-aarch64 remmina remmina-plugin-rdp nmap wget yad uuid-runtime seabios ipxe-qemu wimtools socat ntfs-3g"
   
   #using freerdp version 2 instead of 3 because it does not freeze on login and has more reliable clipboard sync
   if [ "$XDG_SESSION_TYPE" == wayland ];then
@@ -667,6 +677,28 @@ qemu_exitcode_analyzer() { #run after failed QEMU and suggest ZRAM if it was kil
   esac
 }
 
+usb_passthrough_frontend() { #help the user add USB devices to be forwarded to the VM
+  if [ -z "$vmdir" ];then
+    echo "usb_passthrough_frontend: needs vmdir set" 1>&2
+    exit 1
+  fi
+  
+  output="$(lsusb | grep -vi hub | awk '{for(i=6; i<=NF; i++) printf "%s ", $i; print ""}' | sed 's/^/FALSE\n/ ; s/ /\n/' | yad \
+    --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM USB Passthrough Manager" \
+    --width=510 --height=400 --center \
+    --list --no-headers --checklist --column=:CHK --column=sysname --column=name --separator='\n' --print-column=2 \
+    --text="Select USB devices to forward to the VM."$'\n'"Be aware that they will stop working on Linux while the VM is running.")" || return 0
+  
+  if [ -z "$output" ];then
+    #no devices specified, reset line to default and comment it out
+    sed -i "s/^usb_passthrough=.*/#usb_passthrough='05dc:a720'/g" "$vmdir/bvm-config"
+  else
+    #edit config file to uncomment the line and replace it with user-selected list of usb devices
+    sed -i "s/^#usb_passthrough=/usb_passthrough=/g ; s/^usb_passthrough=.*/usb_passthrough='$(echo "$output" | grep . | tr '\n' ' ' | sed 's/ $//g')'/g" "$vmdir/bvm-config"
+  fi
+}
+export -f usb_passthrough_frontend #make available to clickhandler
+
 #full path to the bvm folder storing this script
 DIRECTORY="$(readlink -f "$(dirname "$(readlink -f "$0")")")"
 
@@ -787,7 +819,7 @@ echo "BVM mode $mode"
 case "$mode" in
   help)
     echo -e "BVM HELP:   --------------------------------------------------------------------
-\e[96mAll primary modes: new-vm, download, prepare, firstboot, boot, connect, mount\e[0m
+\e[96mAll primary modes: new-vm, download, prepare, firstboot, boot, connect, mount, expand\e[0m
 You generally want to run the modes in that order.
 Additional modes: help, list-languages, boot-nodisplay, boot-ramfb, boot-gtk, connect-freerdp, connect-remmina
 
@@ -813,7 +845,9 @@ To get a fresh VM up and running, use a sequence like this:
  Default connect mode uses the FreeRDP client, which is faster, but sometimes freezes on login. If this happens try the connect-remmina mode.
  Mount the Windows main hard drive with:
 \e[96m$0 mount $HOME/win11\e[0m
- Be aware: the VM needs to be shut down properly to mount in read/write mode." | sed "s+$HOME/+~/+g"
+ Be aware: the VM needs to be shut down properly to mount in read/write mode.
+ Expand the main Windows hard drive with:
+\e[96m$0 expand $HOME/win11\e[0m" | sed "s+$HOME/+~/+g"
     ;;
     
   list-languages)
@@ -848,7 +882,7 @@ To get a fresh VM up and running, use a sequence like this:
       #undo our hack and allow text editors to use wayland
       unset GDK_BACKEND
       export GDK_BACKEND
-      
+      echo "clickhandler: $*" 1>&2
       case "$1" in
         newvm) #1
           if [ -f "$vmdir/gui-steps-complete" ];then
@@ -899,7 +933,26 @@ To get a fresh VM up and running, use a sequence like this:
             Remmina)
               run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete"
               ;;
+            *)
+              error "clickhandler: unrecognized boot gui mode"
+              ;;
           esac
+          ;;
+        mount)
+          #change green message to not say next step
+          define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM! This terminal can be closed now.+g')"
+          run_in_terminal "${DIRECTORY}/bvm mount '$vmdir' ; step_complete"
+          ;;
+        expand)
+          #change green message to not say next step
+          define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM! This terminal can be closed now.+g')"
+          run_in_terminal "${DIRECTORY}/bvm expand '$vmdir' ; step_complete"
+          ;;
+        usbsetup)
+          usb_passthrough_frontend
+          ;;
+        *)
+          echo "clickhandler: unknown button" 1>&2
           ;;
       esac
       
@@ -919,6 +972,9 @@ To get a fresh VM up and running, use a sequence like this:
           ;;
         5)
           echo "6:$button6"
+          echo "8:$mount_button"
+          echo "9:$expand_button"
+          echo "10:$usbsetup_button"
           ;;
       esac
       exit 0
@@ -932,11 +988,17 @@ To get a fresh VM up and running, use a sequence like this:
     export button4="@bash -c 'clickhandler prepare'"
     export button5="@bash -c 'clickhandler firstboot'"
     export button6="@bash -c 'clickhandler boot %7'"
+    export mount_button="@bash -c 'clickhandler mount'"
+    export expand_button="@bash -c 'clickhandler expand'"
+    export usbsetup_button="@bash -c 'clickhandler usbsetup'"
     initial_button2="@disabled@"
     initial_button3="@disabled@"
     initial_button4="@disabled@"
     initial_button5="@disabled@"
     initial_button6="@disabled@"
+    initial_mount_button="@disabled@"
+    initial_expand_button="@disabled@"
+    initial_usbsetup_button="@disabled@"
     if [ ! -f "$vmdir/gui-steps-complete" ];then
       steps_complete=0
     else
@@ -956,6 +1018,9 @@ To get a fresh VM up and running, use a sequence like this:
       fi
       if [ "$steps_complete" -ge 5 ];then
         initial_button6="$button6"
+        initial_mount_button="$mount_button"
+        initial_expand_button="$expand_button"
+        initial_usbsetup_button="$usbsetup_button"
       fi
     fi
     
@@ -969,7 +1034,11 @@ To get a fresh VM up and running, use a sequence like this:
       --field="<b>Prepare for installation</b>!${DIRECTORY}/resources/graphics/4.png!Bundle up driver files and get ready for first boot":FBTN "$initial_button4" \
       --field="<b>Install Windows 11</b>!${DIRECTORY}/resources/graphics/5.png!Boot the VM for the first time to install Windows":FBTN "$initial_button5" \
       --field="<b>Run Windows 11</b>!${DIRECTORY}/resources/graphics/6.png!Boot the VM normally":FBTN "$initial_button6" \
-      --field="Viewing mode":CB "Direct!^FreeRDP!Remmina"
+      --field="Viewing mode:":CB "Direct!^FreeRDP!Remmina" \
+      --field="Mount disk.qcow2!!Browse the full C: drive of the VM to add/remove files":FBTN "$initial_mount_button" \
+      --field="Expand disk.qcow2!!Increase the size of the storage available to the VM":FBTN "$initial_expand_button" \
+      --field="USB passthrough!!Give the VM direct access to specific USB devices":FBTN "$initial_usbsetup_button"
+
     ;;
   new-vm)
     #initializes a new vmdir
@@ -1295,6 +1364,7 @@ To get a fresh VM up and running, use a sequence like this:
     fi
     qemu_exit_code=$?
     kill $balloon_popper
+    sudo rm -f "$udev_file"
     
     if [ $qemu_exit_code == 0 ];then
       status "QEMU closed."
@@ -1393,12 +1463,65 @@ To get a fresh VM up and running, use a sequence like this:
       done
     done
     ;;
-  mount)
     
-    mount_qcow2 "$vmdir/disk.qcow2"
+  mount) #browse and change files in disk.qcow2
+    mount_qcow2 "$vmdir/disk.qcow2" #will exit right here on error
+    trap "unmount_qcow2 &>/dev/null" EXIT SIGINT
     status "$vmdir/disk.qcow2 is now mounted to /media/$USER/bvm-mount$rdp_port"
     read -p "Press enter to unmount"
     unmount_qcow2
+    ;;
+    
+  expand) #increase the size of disk.qcow2
+    
+    read -e -p "$(echo -ne '\e[96m')Enter number of gigabytes to ADD to the disk.qcow2 file: $(echo -ne '\e[0m')" -i 10 addsize
+    if [ -z "$addsize" ];then
+      echo "Canceling without making changes."
+      exit 0
+    fi
+    addsize="$(echo "$addsize" | tr -cd '0123456789\n')" #sanitize input
+    
+    #expand disk
+    status -n "Adding $addsize GB to file... "
+    qemu-img resize "$vmdir/disk.qcow2" +"${addsize}"G | grep -vFx 'Image resized.'
+    if [ ${PIPESTATUS[0]} != 0 ];then
+      error "\nFailed to resize disk.qcow2 with qemu-img"
+    fi
+    status_green Done
+    
+    status -n "Getting ready to work on partitions... "
+    #now device-ify qcow2 and expand filesystem on partition 4
+    nbd_device="$(connect_qcow2_to_nbd "$vmdir/disk.qcow2")" || exit 1
+    trap "sudo qemu-nbd --disconnect $nbd_device &>/dev/null" EXIT SIGINT
+    status_green Done
+    
+    status -n "Expanding NTFS partition to take up new space... "
+    #expand partition table and remove partition 5 if found
+    if [ -b ${nbd_device}p5 ];then
+      #updates GPT, removes partition 5
+      sudo parted -s -f ${nbd_device} rm 5 2>&1 | grep -v '^Warning: Not all of the space available\|Fixing, due to --fix\|^$\|^[[:space:]]*$'
+      #that can fail, though if it does the next parted command probably will too
+    fi
+    
+    #resize partition 4 to expand to all new space
+    sudo parted -s -f ${nbd_device} resizepart 4 100% 2>&1 | grep -v '^Warning: Not all of the space available\|Fixing, due to --fix\|Information: You may need to update /etc/fstab.\|^$\|^[[:space:]]*$'
+    if [ ${PIPESTATUS[0]} != 0 ];then
+      sudo qemu-nbd --disconnect ${nbd_device}
+      error "\nFailed to expand 4th partition to fill the new space on disk"
+    fi
+    status_green Done
+    
+    #resize filesystem
+    status "Expanding filesystem..."
+    if ! sudo ntfsresize -f ${nbd_device}p4 ;then
+      sudo qemu-nbd --disconnect ${nbd_device}
+      error "\nFailed to expand filesystem to fill new space on 4th partition"
+    fi
+    status_green Done
+    
+    status -n "Cleaning up... "
+    sudo qemu-nbd --disconnect ${nbd_device} 2>&1 | grep -vFx "$nbd_device disconnected"
+    status_green Done
     ;;
   *)
     error "unknown mode '$mode'. Run $0 help to see available options."
@@ -1440,7 +1563,15 @@ slmgr /ato
 #vm disk settings benchmarks to speed up firstboot (falloc, cache, cluster_size)
 #https://events19.lfasiallc.com/wp-content/uploads/2017/11/Storage-Performance-Tuning-for-FAST-Virtual-Machines_Fam-Zheng.pdf
 
-#display build information (run in windows)
+#solve weird usb passthrough issue - bad socket format
+sudo journalctl -u systemd-udevd #many lines like this: event9: Process '/usr/sbin/th-cmd --socket /var/run/thd.socket --passfd --udev' failed with exit code 1.
+#see the issue, run it with strace
+sudo strace /usr/sbin/th-cmd --socket /var/run/thd.socket --passfd --udev
+#said something about bad socket format for /var/run/thd.socket 
+sudo rm /var/run/thd.socket 
+reboot
+
+#display build information on desktop (run in windows)
 reg add "HKCU\Control Panel\Desktop" /v PaintDesktopVersion /t REG_DWORD /d 0x00000001 /f
 
 #logout on RDP disconnect (reduces idle CPU)
