@@ -633,26 +633,31 @@ copy_icons() { #install icons to a location where the panel will notice them
   #for wf-panel-pi at least, updating icon caches seems to do no good
 }
 
-find_a76_cores() { #Support big.LITTLE cpus such as RK3588. Return 1 if not all cores are equal, list the A76 ones no matter what
+is_atomics_cpu() { #check if this CPU supports latest Windows 11, which requires the 'atomics' CPU instruction
+  cat /proc/cpuinfo | grep -qw 'Features.*atomics'
+}
+
+list_cores_to_use() { #Support big.LITTLE cpus such as RK3588. List the performance cores, or all cores if all are equal. Return 1 if performance cores detected.
   local cores="$(cat /proc/cpuinfo | grep '^CPU part\|^processor\|^$' | tr '\n' '\r' | sed 's/\r\r/\n/g ; s/\r/ /g')"
   
   #list of A76+ core part numbers: https://github.com/bp0/armids/blob/master/arm.ids
   local grep_match='0xd0b\|0xd0c\|0xd0d\|0xd13\|0xd20\|0xd21\|0xd4a'
   
-  local a76_cores="$(echo "$cores" | grep -w "$grep_match" | awk '{print $3}')"
-  local non_a76_cores="$(echo "$cores" | grep -vw "$grep_match" | awk '{print $3}')"
+  local a76_cores="$(echo "$cores" | grep -w "$grep_match")"
   
-  echo "$a76_cores"
-  if [ -z "$a76_cores" ] || [ -z "$non_a76_cores" ];then
-    #all the cores are the same
-    return 0
-  else
-    #list the cores that are A76
+  #if there are some a76 cores, and list of a76 cores is not the same as list of total cores
+  if [ ! -z "$a76_cores" ] && [ "$cores" != "$a76_cores" ];then
+    #performance cores detected, return only them
+    echo "$a76_cores" | awk '{print $3}'
     return 1
+  else
+    #all cores are the same, return them all
+    echo "$cores" | awk '{print $3}'
+    return 0
   fi
 }
 
-qemu_exitcode_analyzer() {
+qemu_exitcode_analyzer() { #run after failed QEMU and suggest ZRAM if it was killed
   case $? in
     137)
       error "QEMU was terminated for using too much RAM. Try enabling ZRAM.\nInstructions: https://pi-apps.io/install-app/install-more-ram-on-raspberry-pi"
@@ -662,8 +667,10 @@ qemu_exitcode_analyzer() {
   esac
 }
 
+#full path to the bvm folder storing this script
 DIRECTORY="$(readlink -f "$(dirname "$(readlink -f "$0")")")"
 
+#Track the original arguments given to the script in order to restart in an update
 original_flags=("$@")
 
 mode="$1"
@@ -734,6 +741,9 @@ if [ -z "$vm_mem" ];then
   #more than 4GB has no benefit for firstinstall
   [ "$mode" == firstboot ] && [ "$vm_mem" -gt 4 ] && vm_mem=4
 fi
+
+#fixes https://github.com/Botspot/bvm/issues/26
+export PAN_MESA_DEBUG=gl3
 
 debug "DIRECTORY: $DIRECTORY
 mode: $mode
@@ -981,16 +991,16 @@ To get a fresh VM up and running, use a sequence like this:
       error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
     fi
     
-    #get either latest ISO if CPU supports it, or W11 22631 if CPU is not ARMv8.1+
-    if [ ! -z "$(find_a76_cores)" ];then
-      #ARMv8.1+, get latest windows (Pi5, A76 core)
+    #get either latest ISO if CPU supports it, or W11 22631 if CPU does not support atomics
+    if is_atomics_cpu ;then
+      #ARM supports 'atomics' instruction, get latest windows (Pi5, other SBCs)
       #vmdir and $download_language must be set for this function
       download_windows_11arm64 || exit 1
       
       #Patch the ISO to not require a keypress to boot
       patch_iso_noprompt "$vmdir/installer.iso" || exit 1
-    else
-      warning "Downloading an older Windows version that is compatible with your device. Later versions of Windows 11 require ARM instructions that your CPU lacks."
+    else # (Pi4)
+      warning "Downloading an older Windows version that is compatible with your device. Later versions of Windows 11 require the 'atomics' ARM instruction that your CPU lacks."
       #get Windows build 22631 for Pi4s and other A53 CPUs
       download_windows_11arm64_22631 || exit 1
     fi
@@ -1093,16 +1103,15 @@ To get a fresh VM up and running, use a sequence like this:
     fi
     
     #determine if only some CPU cores can be used
-    if a76_cores="$(find_a76_cores)" ;then
+    if use_cores="$(list_cores_to_use)" ;then
       #function returned 0, so all cores are the same and taskset is not needed
-      num_cores=$(nproc) #give QEMU all cores the CPU has
       use_taskset=false
     else
       #some cores are performance cores, use them
-      warning "CPU detected with 2 types of cores. Trying to only use the performance cores, but this is untested code. PLEASE reach out to Botspot if it works, or if it does not work."
-      num_cores="$(echo "$a76_cores" | wc -l)"
+      warning "Trying to use performance cores on your CPU only. PLEASE reach out to Botspot if this does not work."
       use_taskset=true
     fi
+    num_cores="$(echo "$use_cores" | wc -l)"
     
     #Duplicate unattended.iso to try to always make one of them take the F: drive letter, no matter how D: and E: decide to arrange themselves it should work
     full_qemu_flags=(-M virt,accel=kvm -cpu host -m ${vm_mem}G -smp $num_cores \
@@ -1128,7 +1137,7 @@ To get a fresh VM up and running, use a sequence like this:
       qemu-system-aarch64 "${full_qemu_flags[@]}" || qemu_exitcode_analyzer
     else
       #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
-      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || qemu_exitcode_analyzer
+      taskset -c "$(echo "$use_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}" || qemu_exitcode_analyzer
     fi
     status "QEMU closed."
     
@@ -1220,16 +1229,15 @@ To get a fresh VM up and running, use a sequence like this:
     fi
     
     #determine if only some CPU cores can be used
-    if a76_cores="$(find_a76_cores)" ;then
+    if use_cores="$(list_cores_to_use)" ;then
       #function returned 0, so all cores are the same and taskset is not needed
-      num_cores=$(nproc) #give QEMU all cores the CPU has
       use_taskset=false
     else
       #some cores are performance cores, use them
-      warning "CPU detected with 2 types of cores. Trying to only use the performance cores, but this is untested code. PLEASE reach out to Botspot if it works, or if it does not work."
-      num_cores="$(echo "$a76_cores" | wc -l)"
+      warning "Trying to use performance cores on your CPU only. PLEASE reach out to Botspot if this does not work."
       use_taskset=true
     fi
+    num_cores="$(echo "$use_cores" | wc -l)"
     
     #forward guest's port 3389 to localhost port of our choice (handled by config file now)
     #network_flags=(-netdev user,id=nic,hostfwd=tcp:127.0.0.1:${rdp_port}-:3389 -device virtio-net-pci,netdev=nic)
@@ -1283,7 +1291,7 @@ To get a fresh VM up and running, use a sequence like this:
       qemu-system-aarch64 "${full_qemu_flags[@]}"
     else
       #For rockchip (untested but based on https://gist.github.com/Vogtinator/293c4f90c5e92838f7e72610725905fd?permalink_comment_id=5378278#gistcomment-5378278)
-      taskset -c "$(echo "$a76_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}"
+      taskset -c "$(echo "$use_cores" | tr '\n' ',' | sed 's/,$//g')" qemu-system-aarch64 "${full_qemu_flags[@]}"
     fi
     qemu_exit_code=$?
     kill $balloon_popper
