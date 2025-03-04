@@ -96,6 +96,7 @@ Right now it is quite simplistic, but functional. It might stay that way, it mig
 - Your VM can be a folder anywhere, so it could be on an external SSD drive, or even network storage if you wanted. If you encounter issues with sparse preallocation, let me know and I can add a fallback case to do full preallocation.
 - If you are using the `boot-nodisplay` with `connect` modes, the VM could boot in the background every time you log in to Linux. [Use Autostar for this.](https://github.com/Botspot/autostar)
 - Encounter an issue? [Open an issue.](https://github.com/Botspot/bvm/issues) Deal? Deal. :)
+- Please post how you use BVM in the new [Show-And-Tell!](https://github.com/Botspot/bvm/discussions/categories/show-and-tell)
 
 ### Other announcements:
 - **Gratitude**: Thanks to [Jeff Geerling](https://www.youtube.com/watch?v=mkfILjKJ8nc) and [Leepspvideo](https://www.youtube.com/watch?v=b7puJhWLQkU) for featuring BVM in their videos just 2 days after [release day](https://github.com/Botspot/bvm/commit/038a5b452f3b9691cc64355c8272967c17ac2e9a)!
