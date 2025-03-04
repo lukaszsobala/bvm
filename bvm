@@ -1271,6 +1271,11 @@ To get a fresh VM up and running, use a sequence like this:
         ;;
     esac
     
+    #check for rdp_port being already in use
+    if nc -z localhost "$rdp_port" ;then
+      error "Network port $rdp_port is already in use. Either you already have a Remote Desktop server, or BVM running on this system already. Either disable that other service, or change rdp_port in the bvm-config file."
+    fi
+    
     #determine audio backend to use, try to de-crackle it as much as possible
     if pgrep pipewire >/dev/null && qemu_newer_than 8.1.0 ;then
       #Make QEMU use pipewire output backend, if possible
