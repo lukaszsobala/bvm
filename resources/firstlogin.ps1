@@ -25,6 +25,9 @@ Start-Sleep -Seconds 5
 # Disable Hibernation
 Execute-Command "powercfg -H OFF"
 
+# Disable recovery environment partition
+Execute-Command "reagentc /disable"
+
 # qemu guest agent
 Execute-Command 'msiexec /i E:\guest-agent\qemu-ga-x86_64.msi /quiet /passive /qn'
 
@@ -53,7 +56,7 @@ Execute-Command 'reg add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\P
 Execute-Command 'reg add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize /v AppsUseLightTheme /t REG_DWORD /d 0 /f'
 Execute-Command 'reg add "HKCU\Control Panel\Desktop" /v Wallpaper /t REG_SZ /d "C:\WINDOWS\web\wallpaper\Windows\img19.jpg" /f'
 
-# Activate Windows using a generic license key
+# Activate Windows using a generic license key from microsoft
 Execute-Command 'slmgr /ipk VK7JG-NPHTM-C97JM-9MPGT-3V66T'
 
 # Run debloat script and log output
