@@ -1,7 +1,7 @@
 <a href="https://github.com/Botspot/pi-apps"><img src="https://github.com/Botspot/pi-apps/blob/master/icons/badge.png?raw=true" align="right"/></a>
 ![BVM](https://raw.githubusercontent.com/Botspot/bvm/refs/heads/main/resources/graphics/icon-128.png)  
 ## Botspot Virtual Machine - Windows 11 QEMU KVM on ARM Linux  
-![20250226_23h09m13s_grim](https://github.com/user-attachments/assets/6cb7d139-8656-4a1e-ab9e-1cdd7d6d6431)  
+![20250304_01h53m41s_grim](https://github.com/user-attachments/assets/7b368dad-eb80-4579-be2e-12a737819f24)  
 It's ready for beta testers. Please [report](https://github.com/Botspot/bvm/issues) good and bad results. Do not assume I am already aware of an issue, unless you can find it in [Issues](https://github.com/Botspot/bvm/issues), in which case please comment with something like "I'm having this problem too."  
 
 ### What to expect:
@@ -80,7 +80,7 @@ To get a fresh VM up and running, use a sequence like this:
 
 Full list of modes: `new-vm`, `download`, `prepare`, `firstboot`, `boot`, `connect`, `mount`, `help`, `list-languages`, `boot-nodisplay`, `boot-ramfb`, `boot-gtk`, `connect-freerdp`, `connect-remmina`, `gui`  
 That last one there deserves a mention. BVM has a graphical user interface.  
-![image](https://github.com/user-attachments/assets/6b4bef4f-b18a-44f0-aba3-1d9ea2f0f34a)  
+![20250304_01h55m15s_grim](https://github.com/user-attachments/assets/cc84632d-466d-4332-b6e2-382dd9277a7b)  
 Run the GUI:
 ```
 bvm/bvm gui
