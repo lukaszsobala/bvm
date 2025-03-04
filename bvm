@@ -689,7 +689,7 @@ usb_passthrough_frontend() { #help the user add USB devices to be forwarded to t
     --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM USB Passthrough Manager" \
     --width=510 --height=400 --center \
     --list --no-headers --checklist --column=:CHK --column=sysname --column=name --separator='\n' --print-column=2 \
-    --text="Select USB devices to forward to the VM."$'\n'"Be aware that they will stop working on Linux while the VM is running."$'\n'"Forwarding keyboard/mouse: bad idea unless you need all Windows keyboard shortcuts working. Must use viewing mode "\""Direct"\"".")" || return 0
+    --text="Select USB devices to forward to the VM."$'\n'"Forwarded devices will stop working on Linux while the VM is running."$'\n'"Keyboard/mouse: bad idea unless you need all Windows keyboard shortcuts. Must use viewing mode "\""Direct"\"".")" || return 0
   
   if [ -z "$output" ];then
     #no devices specified, reset line to default and comment it out
