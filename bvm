@@ -1370,7 +1370,7 @@ To get a fresh VM up and running, use a sequence like this:
       qemu_pid="$(cat "$vmdir/qemu.pid" 2>/dev/null)"
       [ -z "$qemu_pid" ] && continue
       
-      free_ram=$(grep MemFree /proc/meminfo | awk '{print int($2/1024)}')
+      free_ram=$(grep MemAvailable /proc/meminfo | awk '{print int($2/1024)}')
       qemu_used_ram=$(grep VmRSS /proc/$qemu_pid/status | awk '{print $2/1024}' | sed 's/\..*//g')
       other_tasks_ram=$((total_ram - (qemu_used_ram + free_ram)))
       #echo "other taks use $other_tasks_ram"
