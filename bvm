@@ -256,6 +256,7 @@ download_windows_11arm64_22631() { #downloads older W11 version for ARMv8.0 CPUs
     echo "  - Verifying download... "
     local LOCAL_SHA1="$(sha1sum "$SOURCE_FILE" | awk '{print $1}')"
     if [ "$SHA1" != "$LOCAL_SHA1" ];then
+      rm -f "$SOURCE_FILE"
       error "\nSuccessfully downloaded ESD image $SOURCE_FILE, but it appears to be corrupted. Please run this script again.\n(Expected SHA1 hash is $SHA1, but downloaded file has SHA1 hash $LOCAL_SHA1"
     fi
     echo "Done"
@@ -386,6 +387,7 @@ download_windows_11arm64() { #download latest stable windows 11 ISO language $do
   if echo "$iso_download_page_html" | grep -qiF "$sha256" ;then #webpage has a list of sha256 sums per language, and the langs are named differently than here. So just check if it matches any of them.
     echo "  - Verification successful."
   else
+    rm -f "${vmdir}/installer.iso"
     error "installer.iso seems corrupted after download. Its sha256sum was:\n$sha256\nwhich does not match any on this list:$(echo "$iso_download_page_html" | grep '<td>' | sed 's/<td>//g ; s+</td>++g ; s/<tr>//g ; s+</tr>++g')"
   fi
 }
@@ -433,7 +435,7 @@ patch_iso_noprompt() { #force the specified windows iso not require keypress to 
   #make sure efisys_noprompt.bin was extracted successfully
   if [ ! -f /tmp/efisys_noprompt.bin ];then
     error "Failed to extract efisys_noprompt.bin from ISO!"
-  elif [ "$(shasum /tmp/efisys_noprompt.bin | awk '{print $1}')" != '906e019eb371949290df917e73e387f8a18696d7' ];then
+  elif [ "$(sha1sum /tmp/efisys_noprompt.bin | awk '{print $1}')" != '906e019eb371949290df917e73e387f8a18696d7' ];then
     error "The extracted efisys_noprompt.bin had an unexpected hash sum"
   else
     echo "  - Checksums match! Now searching ISO for sections to replace..."
@@ -1064,23 +1066,31 @@ To get a fresh VM up and running, use a sequence like this:
     ;;
   download) #get everything downloaded, and leave it in a state where user can make changes easily
     
-    #ensure there is free space to download everything (user can ignore this error except on GUI, where they have to edit the config to work around it)
-    if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
-      error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
+    #download installer.iso, ask for confirmation to overwrite
+    if [ -f "$vmdir/installer.iso" ];then
+      read -p "$(echo -ne '\e[93m')installer.iso already exists. Delete it and download a fresh copy? [Y/n]$(echo -ne '\e[0m') " answer
+      [ "$answer" != n ] && rm -f "$vmdir/installer.iso"
     fi
     
-    #get either latest ISO if CPU supports it, or W11 22631 if CPU does not support atomics
-    if is_atomics_cpu ;then
-      #ARM supports 'atomics' instruction, get latest windows (Pi5, other SBCs)
-      #vmdir and $download_language must be set for this function
-      download_windows_11arm64 || exit 1
+    if [ ! -f "$vmdir/installer.iso" ];then
+      #ensure there is free space to download everything (user can ignore this error except on GUI, where they have to edit the config to work around it)
+      if [ "$(get_space_free "$vmdir")" -le $((disksize*1024*1024*1024)) ];then
+        error "Insufficient free disk space. $disksize GB is needed, but you only have $(($(get_space_free "$vmdir")/1024/1024/1024)) GB. You can try reducing the desired disk size in the config file to get around this error."
+      fi
       
-      #Patch the ISO to not require a keypress to boot
-      patch_iso_noprompt "$vmdir/installer.iso" || exit 1
-    else # (Pi4)
-      warning "Downloading an older Windows version that is compatible with your device. Later versions of Windows 11 require the 'atomics' ARM instruction that your CPU lacks."
-      #get Windows build 22631 for Pi4s and other A53 CPUs
-      download_windows_11arm64_22631 || exit 1
+      #get either latest ISO if CPU supports it, or W11 22631 if CPU does not support atomics
+      if is_atomics_cpu ;then
+        #ARM supports 'atomics' instruction, get latest windows (Pi5, other SBCs)
+        #vmdir and $download_language must be set for this function
+        download_windows_11arm64 || exit 1
+        
+        #Patch the ISO to not require a keypress to boot
+        patch_iso_noprompt "$vmdir/installer.iso" || exit 1
+      else # (Pi4)
+        warning "Downloading an older Windows version that is compatible with your device. Later versions of Windows 11 require the 'atomics' ARM instruction that your CPU lacks."
+        #get Windows build 22631 for Pi4s and other A53 CPUs
+        download_windows_11arm64_22631 || exit 1
+      fi
     fi
     
     status "Downloading virtio drivers"
