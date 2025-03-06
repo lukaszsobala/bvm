@@ -5,25 +5,32 @@
 #BVM sources the script on each run in order to pick up your settings in an easier format.
 
 #Do not change this file if it is in the bvm/resources folder. Leave that one alone.
-#Make changes to the copy of the file in your VM directory. Example: ~/win11/bvm-config
-#This file will be copied to the VM folder when you run bvm new-vm 
+#Make changes to the copy of the file in your VM directory that is created after running bvm new-vm
 
-#Windows username and password to set during the firstboot mode
+#Windows username and password to set during the firstboot mode.
 vm_username="Win11ARM"
 vm_password="win11arm"
-#If you change the credentials later, update them here for the connect mode to work.
+#If you change your windows user/password, change it here too for the connect mode to work.
 
-#Select language. List all languages with: bvm list-languages
+#Select Windows language to download. List all languages with: bvm list-languages
 download_language="English (United States)"
 
-#If you have mutliple VMs, give each one a unique value.
-rdp_port=3389
-#Make sure this value does not conflict with other network services shown when running netstat -tuln
-
-#Change this to false if you don't want Microsoft bloatware, ads, and Windows Defender removed
+#Change this to false if you don't want Microsoft bloatware, ads, and Windows Defender removed during firstboot.
 debloat=true
 #Be aware that other registry changes (like dark mode, disabling hibernation, and RDP) will still be run on the VM.
 #Inspect the firstlogin.ps1 and autounattend.xml files for more details.
+
+#Choose the initial size of the disk image.
+disksize=40
+#This can go as low as 20 if you encounter the "Insufficient free disk space" error.
+#The drive can be expanded later, but not from this config option.
+
+##### ATTENTION!!!
+##### The above options need to be set before running the download step.
+##### The remaining options can be changed at any time.
+
+#If you have mutliple VMs, give each one a unique value.
+rdp_port=3389
 
 #Force RAM allocation for QEMU. (in gigabytes) It's recommended to leave this commented for BVM to choose a sensible value.
 #vm_mem=4
@@ -36,23 +43,21 @@ debloat=true
 #Every second, the VM will adjust its RAM allocation to make sure this much is freely available for Linux.
 #If linux tasks begin to use more, the VM will compensate and use less.
 
-#Uncomment this to change size of the installation drive image in gigabytes. Default 40
-#disksize=40
-#You can reduce this if you encounter the "Insufficient free disk space" error.
-#The lower limit is somewhere around 15 GB (untested)
-
-#Uncomment to enable additional output to help troubleshoot issues.
-#bvm_debug=true
-#Even more debugging: (displays every command run by the script)
-#set -x
-
 #USB forwarding: uncomment this line for the VM to have direct access to a USB device.
 #usb_passthrough='05dc:a720'
 #Replace 05dc:a720 with the value you see, for the device you want, from the output of lsusb
 #For multiple devices, keep it in those quotes, but separate each one with a space character.
 
-#Uncomment this to turn off animations and transparency (lowers CPU a bit, makes more of a difference on X11)
+#Uncomment this to turn off animations and transparency in the connect mode
 #reduce_graphics=true
+
+#Uncomment to view the VM in fullscreen. Uncommenting this overrides the fullscreen setting in GUI.
+#fullscreen=true
+
+#Uncomment to enable additional output to help troubleshoot issues.
+#bvm_debug=true
+#Even more debugging: (displays every command run by the script)
+#set -x
 
 #Uncomment to disable BVM updates. Useful if you have changed the script and do not want your changes overwritten
 #disable_updates=true

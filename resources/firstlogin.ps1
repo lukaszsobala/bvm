@@ -46,7 +46,8 @@ Execute-Command 'sc config TermService start=auto'
 Execute-Command 'net start TermService'
 
 # Logout account after RDP connection is inactive for 1 minute
-Execute-Command 'reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v MaxDisconnectionTime /t REG_DWORD /d 60000 /f'
+# This is now skipped due to https://github.com/Botspot/bvm/issues/48
+#Execute-Command 'reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v MaxDisconnectionTime /t REG_DWORD /d 60000 /f'
 
 # Allow Windows upgrades with unsupported TPM or CPU
 Execute-Command 'reg add HKLM\SYSTEM\Setup\MoSetup /v AllowUpgradesWithUnsupportedTPMOrCPU /t REG_DWORD /d 0x00000001 /f'
