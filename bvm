@@ -639,10 +639,11 @@ update_check() { #check for updates and reload the script if necessary
 
 copy_icons() { #install icons to a location where the panel will notice them
   mkdir -p ~/.local/share/icons/hicolor/scalable/apps
-  if [ ! -f ~/.local/share/icons/hicolor/scalable/apps/wlfreerdp.png ];then
+  if [ ! -f ~/.local/share/icons/hicolor/scalable/apps/bvm.png ];then
     ln -sf "$DIRECTORY/resources/graphics/icon.png" ~/.local/share/icons/hicolor/scalable/apps/qemu.png
     ln -sf "$DIRECTORY/resources/graphics/icon.png" ~/.local/share/icons/hicolor/scalable/apps/wlfreerdp.png
     ln -sf "$DIRECTORY/resources/graphics/icon.png" ~/.local/share/icons/hicolor/scalable/apps/xfreerdp.png
+    ln -sf "$DIRECTORY/resources/graphics/icon.png" ~/.local/share/icons/hicolor/scalable/apps/bvm.png
   fi
   #for wf-panel-pi at least, updating icon caches seems to do no good
 }
@@ -688,7 +689,7 @@ usb_passthrough_frontend() { #help the user add USB devices to be forwarded to t
   fi
   
   output="$(lsusb | grep -vi hub | awk '{for(i=6; i<=NF; i++) printf "%s ", $i; print ""}' | sed 's/^/FALSE\n/ ; s/ /\n/' | yad \
-    --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM USB Passthrough Manager" \
+    --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class bvm --name bvm --title "BVM USB Passthrough Manager" \
     --width=510 --height=400 --center \
     --list --no-headers --checklist --column=:CHK --column=sysname --column=name --separator='\n' --print-column=2 \
     --text="Select USB devices to forward to the VM."$'\n'"Forwarded devices will stop working on Linux while the VM is running."$'\n'"Keyboard/mouse: bad idea unless you need all Windows keyboard shortcuts. Must use viewing mode "\""Direct"\"".")" || return 0
@@ -766,6 +767,7 @@ fi
 [ -z "$debloat" ] && debloat=true
 [ -z "$disksize" ] && disksize=40
 [ -z "$free_ram_goal" ] && free_ram_goal=100
+[ -z "$fullscreen" ] && fullscreen=false
 if [ -z "$vm_mem" ];then
   #choose RAM to allocate to VM - 1GB less than total RAM
   vm_mem="$(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024/1024))"
@@ -795,7 +797,10 @@ vm_username: $vm_username
 vm_password: $vm_password
 vm_mem: $vm_mem
 rdp_port: $rdp_port
-download_language: $download_language"
+download_language: $download_language
+disksize: $disksize
+debloat: $debloat
+fullscreen: $fullscreen"
 
 #check for updates
 update_check
@@ -823,7 +828,10 @@ elif [ ! -z "$vmdir" ] && df -T "$vmdir" 2>/dev/null | grep -q 'fat' ;then
   error "The $DL_DIR directory is on a FAT32/FAT16/vfat partition. This type of partition cannot contain files larger than 4GB, however the Windows image will be larger than that.\nPlease format the drive with an Ext4 partition, or use another drive."
 fi
 
-install_dependencies || exit 1
+#avoid trying to run sudo not in a terminal, in case a password is necessary
+if [ "$mode" != gui ];then
+  install_dependencies || exit 1
+fi
 
 echo "BVM mode $mode"
 
@@ -898,7 +906,7 @@ To get a fresh VM up and running, use a sequence like this:
         newvm) #1
           if [ -f "$vmdir/gui-steps-complete" ];then
             #pick location for new VM, this one already exists
-            vmdir="$(yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --center --directory --file --save --width 500 --text="$vmdir already exists."$'\n'"Proceed only if you are trying to make a second VM.")"
+            vmdir="$(yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class bvm --name bvm --title "BVM" --center --directory --file --save --width 500 --text="$vmdir already exists."$'\n'"Proceed only if you are trying to make a second VM.")"
             if [ ! -z "$vmdir" ] && [ "$vmdir" != "$HOME" ];then
               kill $YAD_PID
               export vmdir
@@ -934,15 +942,22 @@ To get a fresh VM up and running, use a sequence like this:
           
           #change green message to not say next step
           define_step_complete="$(echo "$define_step_complete" | sed 's+Please close this terminal to proceed to the next step\.+Thank you for using BVM! This terminal can be closed now.+g')"
+          
+          if [ "$3" == 'fullscreen' ];then
+            fullscreen=true
+          else
+            fullscreen=false
+          fi
+          
           case "$2" in
             Direct)
-              run_in_terminal "${DIRECTORY}/bvm boot-gtk '$vmdir' ; step_complete"
+              run_in_terminal "export fullscreen=$fullscreen ; ${DIRECTORY}/bvm boot-gtk '$vmdir' ; step_complete"
               ;;
             FreeRDP)
-              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete"
+              run_in_terminal "export fullscreen=$fullscreen ; ${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-freerdp '$vmdir' ; step_complete"
               ;;
             Remmina)
-              run_in_terminal "${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete"
+              run_in_terminal "export fullscreen=$fullscreen ; ${DIRECTORY}/bvm boot-nodisplay '$vmdir' & sleep 15 ; nosplash=true ${DIRECTORY}/bvm connect-remmina '$vmdir' ; step_complete"
               ;;
             *)
               error "clickhandler: unrecognized boot gui mode"
@@ -998,7 +1013,8 @@ To get a fresh VM up and running, use a sequence like this:
     export button3="@bash -c 'clickhandler download'"
     export button4="@bash -c 'clickhandler prepare'"
     export button5="@bash -c 'clickhandler firstboot'"
-    export button6="@bash -c 'clickhandler boot %7'"
+    export button6="@bash -c "\""clickhandler boot '%7'"\"""
+    echo "button6 is $button6"
     export mount_button="@bash -c 'clickhandler mount'"
     export expand_button="@bash -c 'clickhandler expand'"
     export usbsetup_button="@bash -c 'clickhandler usbsetup'"
@@ -1036,7 +1052,7 @@ To get a fresh VM up and running, use a sequence like this:
     fi
     
     #the window freezes while running a task, and wayland times it out, so run on xwayland
-    GDK_BACKEND=x11 yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class wlfreerdp --name wlfreerdp --title "BVM" --form --center --width 400 \
+    GDK_BACKEND=x11 yad --window-icon "${DIRECTORY}/resources/graphics/icon.png" --class bvm --name bvm --title "BVM" --form --center --width 400 \
       --image "${DIRECTORY}/resources/graphics/icon-80.png" --image-on-top --no-buttons \
       --text="Botspot Virtual Machine, at your service.$([ "$vmdir" != "$HOME/win11" ] && echo -e "\nvmdir: <u>$vmdir</u>")" \
       --field="<b>New Virtual Machine</b>!${DIRECTORY}/resources/graphics/1.png!Make a folder to put the VM files in - by default this is ~/win11":FBTN "@bash -c 'clickhandler newvm'" \
@@ -1045,7 +1061,7 @@ To get a fresh VM up and running, use a sequence like this:
       --field="<b>Prepare for installation</b>!${DIRECTORY}/resources/graphics/4.png!Bundle up driver files and get ready for first boot":FBTN "$initial_button4" \
       --field="<b>Install Windows 11</b>!${DIRECTORY}/resources/graphics/5.png!Boot the VM for the first time to install Windows":FBTN "$initial_button5" \
       --field="<b>Run Windows 11</b>!${DIRECTORY}/resources/graphics/6.png!Boot the VM normally":FBTN "$initial_button6" \
-      --field="Viewing mode:":CB "Direct!^FreeRDP!Remmina" \
+      --field="Viewing mode:":CB "Direct!Direct fullscreen!FreeRDP!FreeRDP fullscreen!^Remmina!Remmina fullscreen" \
       --field="Mount disk.qcow2!!Browse the full C: drive of the VM to add/remove files":FBTN "$initial_mount_button" \
       --field="Expand disk.qcow2!!Increase the size of the storage available to the VM":FBTN "$initial_expand_button" \
       --field="USB passthrough!!Give the VM direct access to specific USB devices":FBTN "$initial_usbsetup_button"
@@ -1057,10 +1073,15 @@ To get a fresh VM up and running, use a sequence like this:
     mkdir -p "$vmdir" || error "failed to create vmdir '$vmdir'!"
     
     #copy configuration file
-    cp -n "${DIRECTORY}/resources/bvm-config" "$vmdir"
+    cp -f "${DIRECTORY}/resources/bvm-config" "$vmdir"
+    #copy remmina config
+    #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
+    cp -f "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
     
-    #for GUI: track which step was completed
-    echo 1 > "$vmdir/gui-steps-complete"
+    #for GUI: track which step was completed. Avoid resetting an existing value to 1
+    if [ ! -f "$vmdir/gui-steps-complete" ];then
+      echo 1 > "$vmdir/gui-steps-complete"
+    fi
     
     status_green "You should now be ready for the next step: $0 download $vmdir"
     ;;
@@ -1271,10 +1292,10 @@ To get a fresh VM up and running, use a sequence like this:
         display_flags=(-vga none -device virtio-gpu-pci -display none)
         ;;
       boot-ramfb)
-        display_flags=(-vga none -device ramfb -display gtk,gl=off,grab-on-hover=on)
+        display_flags=(-vga none -device ramfb -display gtk,gl=off,grab-on-hover=on$([ "$fullscreen" == true ] && echo ',full-screen=on'))
         ;;
       boot-gtk|boot)
-        display_flags=(-vga none -device virtio-gpu-pci -display gtk,gl=on,grab-on-hover=on)
+        display_flags=(-vga none -device virtio-gpu-pci -display gtk,gl=on,grab-on-hover=on$([ "$fullscreen" == true ] && echo ',full-screen=on'))
         ;;
       *)
         error "Unknown suffix after 'boot': '$mode'"
@@ -1304,8 +1325,8 @@ To get a fresh VM up and running, use a sequence like this:
     
     #handle USB forwarding preferences set by usb_passthrough variable
     usb_forwarding_flags=() #this is not to be set in the config file, but created in the for loop. Set usb_passthrough instead.
+    udev_file="/etc/udev/rules.d/10-bvm-hw-access${rdp_port}.rules"
     if [ ! -z "$usb_passthrough" ];then
-      udev_file="/etc/udev/rules.d/10-bvm-hw-access${rdp_port}.rules"
       sudo rm -f "$udev_file"
       trap "sudo rm -f '$udev_file'" EXIT SIGINT #remove this udev rule file on exit
       IFS=' '
@@ -1318,7 +1339,12 @@ To get a fresh VM up and running, use a sequence like this:
         
         usb_forwarding_flags+=(-device usb-host,vendorid=0x$vendor,productid=0x$product,driver=usb-host)
       done
+      #now reload udev rules
+      sudo udevadm control -R
+      sudo udevadm trigger
       
+    elif [ -f "$udev_file" ];then #if usb redirection is now disabled, make sure to remove our udev file if present
+      sudo rm -f "$udev_file"
       #now reload udev rules
       sudo udevadm control -R
       sudo udevadm trigger
@@ -1429,7 +1455,7 @@ To get a fresh VM up and running, use a sequence like this:
     
     while true;do #Relaunch the viewer between VM reboots
       case "$mode" in
-        connect-freerdp|connect)
+        connect-freerdp)
           
           freerdp_flags=(/v:127.0.0.1:$rdp_port /u:$vm_username /p:$vm_password /relax-order-checks /cert:ignore +auto-reconnect \
             /dynamic-resolution /sound +window-drag -sec-rdp -sec-tls +offscreen-cache +home-drive +menu-anims +multitouch \
@@ -1440,9 +1466,14 @@ To get a fresh VM up and running, use a sequence like this:
             freerdp_flags+=(-window-drag -aero -menu-anims)
           fi
           
+          #fullscreen mode: add flag to enable it
+          if [ "$fullscreen" == true ];then
+            freerdp_flags+=(/f)
+          fi
+          
           $freerdp_command "${freerdp_flags[@]}" "${add_freerdp_flags[@]}"
           ;;
-        connect-remmina)
+        connect-remmina|connect)
           
           #change remmina's graphical settings based on reduce_graphics setting
           if [ "$reduce_graphics" == true ];then
@@ -1450,16 +1481,25 @@ To get a fresh VM up and running, use a sequence like this:
           else
             quality=9
           fi
-          #Remmina edits its config file and removes the password on first run, so make a copy for this VM to avoid modifying the version in the main folder.
-          cp -n "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
+          
+          #Copy new-and-improved remmina config
+          grep -qF 'to get microphone input working' "$vmdir/connect.remmina" || cp -f "${DIRECTORY}/resources/connect.remmina" "$vmdir/connect.remmina"
+          #Use Remmina to set parameters in profile
           echo -e "$vm_username\n$vm_password\n127.0.0.1:$rdp_port\n$quality\n$HOME" | remmina --update-profile "$vmdir/connect.remmina" --set-option username --set-option password --set-option server --set-option quality --set-option drive
           
+          #fullscreen mode - enable toolbar, otherwise hide left-align toolbar which is mostly useless
+          if [ "$fullscreen" == true ];then
+            fullscreen_flag='--enable-fullscreen'
+          else
+            fullscreen_flag='--disable-toolbar'
+          fi
+          
           #now run remmina with its newly created/updated config file
-          remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon
+          remmina -c "$vmdir/connect.remmina" --enable-extra-hardening --no-tray-icon $fullscreen_flag --class bvm --name bvm
           ;;
       esac
       status "RDP viewer exited. Analyzing..."
-      sleep 5
+      sleep 6
       
       #wait for RDP service to come back, or exit loop if QEMU stopped
       messaged=0
@@ -1478,7 +1518,7 @@ To get a fresh VM up and running, use a sequence like this:
             #immediately got to this state, so VM never went offline but RDP viewer closed.
             #ask for user input to prevent a forever failed connection loop
             status_green "VM never went offline."
-            status -n "Assuming you disconnected. Press any key to reconnect."
+            status -n "Assuming you disconnected. Press any key to reconnect, or Ctrl+C to exit."
             read -N1 key
             break
           fi
@@ -1659,6 +1699,7 @@ sudo chown $USER:$USER /dev/tap$(cat /sys/class/net/macvtap0/ifindex)
 
 #remmina is faster than all other viewing methods that work, has perfect audio too
 #remmina config doc: https://remmina.gitlab.io/remminadoc.gitlab.io/md__builds__remmina_remmina_ci__remmina_wiki__remmina__config__file__options.html
+#remmina colordepth options: https://github.com/FreeRDP/Remmina/blob/7bc15420b6e6a2a4540f20aeccfabe9cff4b7fd3/plugins/rdp/rdp_plugin.c#L1686
 #cannot run program on startup because exec= uses FreeRDP_AlternateShell which is ignored by Windows 10/11
 #See https://superuser.com/questions/1202758/how-to-use-rdp-alternative-shell-inital-program-in-windows-10education
 #RemoteApp not supported by Remmina
